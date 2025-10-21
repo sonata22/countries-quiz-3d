@@ -6,7 +6,7 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #000000;
     color: #ffffff;
     height: 100vh;
     overflow: hidden;
@@ -35,7 +35,7 @@ body {
     right: 0;
     width: 400px;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(10px);
     border-left: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
@@ -43,7 +43,12 @@ body {
     justify-content: center;
     align-items: center;
     padding: 2rem;
-    z-index: 100;
+    transition: transform 0.4s cubic-bezier(.77,0,.18,1);
+    z-index: 10;
+}
+
+#game-ui.slide-out {
+    transform: translateX(400px);
 }
 
 .screen {

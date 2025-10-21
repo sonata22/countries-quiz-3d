@@ -2,28 +2,28 @@
 class Globe {
     constructor(containerId = 'globe-container', canvasId = 'globe-canvas') {
         this.scene = new THREE.Scene();
-        // Camera positioned along positive Z axis, looking at origin
-        this.camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
-        this.camera.position.set(0, 0, 3); // (x=0, y=0, z=3)
-        this.camera.lookAt(0, 0, 0);
+        this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
+        this.camera.position.set(0, 0, 0);
         this.renderer = new THREE.WebGLRenderer({
             canvas: document.getElementById(canvasId),
             antialias: true,
             alpha: true
         });
-        this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
-        this.controls.enableDamping = true;
-        this.controls.dampingFactor = 0.05;
-        this.controls.enableZoom = true;
-        this.controls.enablePan = false;
-        this.controls.enableRotate = true;
-        this.controls.target.set(0, 0, 0); // Center controls on intersection
-        this.scene.background = new THREE.Color(0x000011);
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.resize();
         window.addEventListener('resize', () => this.resize());
-        this.earth = this.createEarth();
-        this.scene.add(this.earth);
+        // OrbitControls for 360° rotation and zoom
+        this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.enableZoom = true;
+        this.controls.enablePan = true;
+        this.controls.enableRotate = true;
+        this.controls.enableDamping = true;
+        this.controls.dampingFactor = 0.05;
+        this.controls.target.set(0, 0, 0);
+        this.controls.minDistance = 0.1;
+        this.controls.maxDistance = 10;
+        this.scene.background = new THREE.Color(0x000011);
+        // Sphere removed
         this.borderGroup = new THREE.Group();
         this.scene.add(this.borderGroup);
         this.addDebugLines();
@@ -35,26 +35,6 @@ class Globe {
         this.camera.aspect = container.clientWidth / container.clientHeight;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(container.clientWidth, container.clientHeight);
-    }
-
-    createEarth() {
-        const geometry = new THREE.SphereGeometry(1, 128, 64);
-        const textureLoader = new THREE.TextureLoader();
-        // Use local high-res image
-        const earthTexture = textureLoader.load(
-            '/static/images/globe.png',
-            undefined,
-            undefined,
-            function (err) { console.error('Texture load error:', err); }
-        );
-        return new THREE.Mesh(
-            geometry,
-            new THREE.MeshPhongMaterial({
-                map: earthTexture,
-                color: 0xffffff,
-                shininess: 30
-            })
-        );
     }
 
     drawBorders(geojson) {

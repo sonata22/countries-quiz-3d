@@ -20,7 +20,7 @@
         <!-- Game UI -->
         <div id="game-ui">
             <div id="start-screen" class="screen">
-                <h1>🌍 3D Countries Quiz</h1>
+                <h1>Ultimate Countries Quiz</h1>
                 <p>Test your geography knowledge with our interactive 3D globe!</p>
                 <button id="start-btn" class="btn primary">Start Quiz</button>
             </div>
@@ -79,5 +79,13 @@
 
     <script src="{{ url_for('static', filename='js/globe.js') }}"></script>
     <script src="{{ url_for('static', filename='js/game.js') }}"></script>
+    <script>
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'b' || e.key === 'B') {
+            const ui = document.getElementById('game-ui');
+            ui.classList.toggle('slide-out');
+        }
+    });
+    </script>
 </body>
 </html>
