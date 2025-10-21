@@ -1,5 +1,6 @@
 class Game {
     constructor() {
+        console.log('Game constructor called');
         this.currentCountry = null;
         this.score = 0;
         this.totalCountries = 0;
@@ -12,11 +13,13 @@ class Game {
     }
 
     init() {
+        console.log('Game.init called');
         this.bindEvents();
         this.showScreen('start-screen');
     }
 
     bindEvents() {
+        console.log('Game.bindEvents called');
         // Start game button
         document.getElementById('start-btn').addEventListener('click', () => {
             this.startGame();
@@ -65,35 +68,46 @@ class Game {
     }
 
     async startGame() {
+        console.log('Start Quiz button clicked');
         try {
             this.showLoading(true);
-            
             const response = await fetch('/api/start_game', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 }
             });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                this.currentCountry = data.current_country;
-                this.totalCountries = data.total_countries;
-                this.score = 0;
-                this.answeredCountries = 0;
-                this.startTime = Date.now();
-                this.isGameActive = true;
-                
-                this.updateUI();
-                this.showScreen('game-screen');
-                // Ensure the highlighted country shape is shown and focused
-                setTimeout(() => {
-                    this.highlightCountry(this.currentCountry);
-                    document.getElementById('country-input').focus();
-                }, 200);
-                this.startTimer();
+            console.log('Fetch /api/start_game response:', response);
+            if (!response.ok) {
+                console.error('Network error:', response.status, response.statusText);
+                this.showFeedback('Network error: Unable to start quiz. Please check your connection and try again.', 'error');
+                this.showLoading(false);
+                return;
             }
+            const data = await response.json();
+            console.log('Response JSON:', data);
+            if (!data.success) {
+                console.error('Backend error:', data.error || data);
+                this.showFeedback('Backend error: Unable to start quiz. Please try again later.', 'error');
+                this.showLoading(false);
+                return;
+            }
+            
+            this.currentCountry = data.current_country;
+            this.totalCountries = data.total_countries;
+            this.score = 0;
+            this.answeredCountries = 0;
+            this.startTime = Date.now();
+            this.isGameActive = true;
+            
+            this.updateUI();
+            this.showScreen('game-screen');
+            // Ensure the highlighted country shape is shown and focused
+            setTimeout(() => {
+                this.highlightCountry(this.currentCountry);
+                document.getElementById('country-input').focus();
+            }, 200);
+            this.startTimer();
         } catch (error) {
             console.error('Error starting game:', error);
             alert('Error starting game. Please try again.');
@@ -200,9 +214,9 @@ class Game {
         }, 2000);
     }
 
-    highlightCountry() {
-        if (this.currentCountry && globe.isLoaded) {
-            globe.highlightCountry(this.currentCountry.lat, this.currentCountry.lng, this.currentCountry.code);
+    highlightCountry(currentCountry) {
+        if (currentCountry && window.geojson) {
+            globe.highlightCountry(currentCountry.code, window.geojson);
         }
     }
 
@@ -295,14 +309,15 @@ class Game {
     }
 }
 
-// Initialize game when page loads
-let game;
-document.addEventListener('DOMContentLoaded', () => {
-    // Wait a bit for globe to initialize
-    setTimeout(() => {
-        game = new Game();
-    }, 1000);
-});
+// Delay Game initialization until globe is ready
+function initGameWhenGlobeReady() {
+    if (window.globe && typeof window.globe.disableAutoRotate === 'function') {
+        window.game = new Game();
+    } else {
+        setTimeout(initGameWhenGlobeReady, 50);
+    }
+}
+initGameWhenGlobeReady();
 
 // Handle Enter key globally for continuing after wrong answers
 document.addEventListener('keypress', (e) => {
