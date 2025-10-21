@@ -69,7 +69,7 @@ class Globe {
                     const lngRad = -lng * Math.PI / 180;
                     const radius = 1.01;
                     return new THREE.Vector3(
-                        Math.cos(latRad) * Math.cos(lngRad) * radius,
+                        -Math.cos(latRad) * Math.cos(lngRad) * radius, // flipped x
                         Math.sin(latRad) * radius,
                         Math.cos(latRad) * Math.sin(lngRad) * radius
                     );
@@ -97,7 +97,7 @@ class Globe {
                         const lngRad = -lng * Math.PI / 180;
                         const radius = 1.01;
                         return new THREE.Vector3(
-                            Math.cos(latRad) * Math.cos(lngRad) * radius,
+                            -Math.cos(latRad) * Math.cos(lngRad) * radius, // flipped x
                             Math.sin(latRad) * radius,
                             Math.cos(latRad) * Math.sin(lngRad) * radius
                         );
