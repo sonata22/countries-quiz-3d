@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Countries Quiz</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <div id="container">
+        <!-- 3D Globe Container -->
+        <div id="globe-container">
+            <canvas id="globe-canvas"></canvas>
+        </div>
+        <!-- Controls for globe toggles and focus -->
+        <div id="controls" style="margin: 12px 0;"></div>
+        
+        <!-- Game UI -->
+        <div id="game-ui">
+            <div id="start-screen" class="screen">
+                <h1>🌍 3D Countries Quiz</h1>
+                <p>Test your geography knowledge with our interactive 3D globe!</p>
+                <button id="start-btn" class="btn primary">Start Quiz</button>
+            </div>
+            
+            <div id="game-screen" class="screen hidden">
+                <div id="game-info">
+                    <div id="score-info">
+                        <span id="current-score">0</span> / <span id="total-countries">0</span>
+                    </div>
+                    <div id="timer">
+                        Time: <span id="time-display">0:00</span>
+                    </div>
+                </div>
+                
+                <div id="question-area">
+                    <h2>What country is highlighted?</h2>
+                    <div id="input-area">
+                        <input type="text" id="country-input" placeholder="Enter country name..." autocomplete="off">
+                        <button id="submit-btn" class="btn primary">Submit</button>
+                    </div>
+                    <div id="feedback" class="hidden"></div>
+                </div>
+                
+                <div id="instructions">
+                    <p>🖱️ Click and drag to rotate the globe</p>
+                    <p>🔍 Scroll to zoom in/out</p>
+                </div>
+            </div>
+            
+            <div id="result-screen" class="screen hidden">
+                <h2>🎉 Quiz Complete!</h2>
+                <div id="final-results">
+                    <div class="result-item">
+                        <span class="label">Final Score:</span>
+                        <span id="final-score">0/0</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="label">Total Time:</span>
+                        <span id="final-time">0:00</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="label">Accuracy:</span>
+                        <span id="accuracy">0%</span>
+                    </div>
+                </div>
+                <button id="restart-btn" class="btn primary">Play Again</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Loading indicator -->
+    <div id="loading" class="hidden">
+        <div class="spinner"></div>
+        <p>Loading Earth...</p>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/globe.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/game.js') }}"></script>
+</body>
+</html>
