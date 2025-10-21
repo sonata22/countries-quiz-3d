@@ -1,10 +1,78 @@
 class Globe {
+    /**
+     * Set globe focus to a given lat/lng and zoom level.
+     * @param {number} lat Latitude
+     * @param {number} lng Longitude
+     * @param {number} zoom Camera distance (optional)
+     * @param {boolean} animate Animate rotation/zoom (default true)
+     */
+    setGlobeFocus(lat, lng, zoom, animate) {
+        // Restore normal centering logic: rotate to lat/lng
+        const latRad = lat * Math.PI / 180;
+        const lngRad = -lng * Math.PI / 180;
+        const target = new THREE.Vector3(
+            Math.cos(latRad) * Math.cos(lngRad),
+            Math.sin(latRad),
+            Math.cos(latRad) * Math.sin(lngRad)
+        ).normalize();
+        const front = new THREE.Vector3(0, 0, 1);
+        const q = new THREE.Quaternion().setFromUnitVectors(target, front);
+        if (animate) {
+            // Animate rotation
+            const startQuat = this.earth.quaternion.clone();
+            const endQuat = q;
+            const duration = 1200;
+            const startTime = Date.now();
+            const animateRot = () => {
+                const elapsed = Date.now() - startTime;
+                const t = Math.min(elapsed / duration, 1);
+                // Ease-in-out
+                const progress = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+                this.earth.quaternion.slerpQuaternions(startQuat, endQuat, progress);
+                if (t < 1) {
+                    requestAnimationFrame(animateRot);
+                }
+            };
+            animateRot();
+        } else {
+            // Instantly set orientation
+            this.earth.quaternion.copy(q);
+        }
+        // Set camera zoom
+        if (zoom !== null) {
+            if (animate) {
+                const startZoom = this.camera.position.length();
+                const zoomDuration = 800;
+                const zoomStartTime = Date.now();
+                const animateZoom = () => {
+                    const elapsed = Date.now() - zoomStartTime;
+                    const progress = Math.min(elapsed / zoomDuration, 1);
+                    const easeProgress = 1 - Math.pow(1 - progress, 3);
+                    const newZoom = startZoom + (zoom - startZoom) * easeProgress;
+                    this.camera.position.setLength(newZoom);
+                    if (progress < 1) {
+                        requestAnimationFrame(animateZoom);
+                    }
+                };
+                animateZoom();
+            } else {
+                this.camera.position.setLength(zoom);
+            }
+        }
+        // Always set controls.target to globe center and update
+        if (this.controls) {
+            this.controls.target.set(0, 0, 0);
+            this.controls.update();
+        }
+        // Always reset camera up vector for consistent zoom
+        this.camera.up.set(0, 1, 0);
+    }
     toggleMapTexture(show) {
         if (!this.earth) return;
         if (show) {
             // Restore earth texture from dedicated variable
             this.earth.material.map = this.earthTexture;
-            this.earth.material.color.set(0xffffff);
+            this.earth.material.color.set(0xdddddd); // Lower intensity for natural look
             this.earth.material.needsUpdate = true;
         } else {
             // Hide earth texture, show solid color
@@ -35,15 +103,15 @@ class Globe {
         }
         // Equator (lat = 0)
         const equatorPoints = [];
-            for (let lng = -180; lng <= 180; lng += 2) {
-                const latRad = 0;
-                const lngRad = -lng * Math.PI / 180;
-                const radius = 1.02;
-                const x = radius * Math.cos(latRad) * Math.cos(lngRad);
-                const y = radius * Math.sin(latRad);
-                const z = radius * Math.cos(latRad) * Math.sin(lngRad);
-                equatorPoints.push(new THREE.Vector3(x, y, z));
-            }
+        for (let lng = -180; lng <= 180; lng += 2) {
+            const latRad = 0;
+            const lngRad = -lng * Math.PI / 180;
+            const radius = 1.02;
+            const x = radius * Math.cos(latRad) * Math.cos(lngRad);
+            const y = radius * Math.sin(latRad);
+            const z = radius * Math.cos(latRad) * Math.sin(lngRad);
+            equatorPoints.push(new THREE.Vector3(x, y, z));
+        }
         const equatorGeometry = new THREE.BufferGeometry().setFromPoints(equatorPoints);
         const equatorMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00 });
         const equatorLine = new THREE.Line(equatorGeometry, equatorMaterial);
@@ -146,8 +214,23 @@ class Globe {
                 // Default border color: gray
                 const material = new THREE.LineBasicMaterial({ color: 0xcccccc, linewidth: 3 });
                 const line = new THREE.Line(geometry, material);
-                // Store country code for later reference
-                line.userData = { code: feature.properties.code || feature.properties['ISO3166-1-Alpha-2'] };
+                // Store country code and centroid for later reference
+                const code = feature.properties.code || feature.properties['ISO3166-1-Alpha-2'];
+                // Calculate centroid for this country
+                let centroid = feature.properties.centroid;
+                if (!centroid && feature.properties.lat !== undefined && feature.properties.lng !== undefined) {
+                    centroid = [feature.properties.lat, feature.properties.lng];
+                }
+                // Fallback: use first point if no centroid
+                if (!centroid && points.length > 0) {
+                    // Convert back to lat/lng
+                    const p = points[0];
+                    const r = Math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+                    const lat = Math.asin(p.y / r) * 180 / Math.PI;
+                    const lng = -Math.atan2(p.z, p.x) * 180 / Math.PI;
+                    centroid = [lat, lng];
+                }
+                line.userData = { code, lat: centroid ? centroid[0] : undefined, lng: centroid ? centroid[1] : undefined };
                 this.allBordersGroup.add(line);
             });
         });
@@ -193,24 +276,22 @@ class Globe {
         this.controls.dampingFactor = 0.05;
         this.controls.enableZoom = true;
         this.controls.enablePan = false;
-        // Allow much closer zoom
-        this.controls.minDistance = 0.2;
+        this.controls.minDistance = 0.7;
         this.controls.maxDistance = 50;
         this.controls.autoRotate = false;
         this.controls.autoRotateSpeed = 0.5;
+        // Remove all rotation limitations
+        this.controls.minAzimuthAngle = -Infinity;
+        this.controls.maxAzimuthAngle = Infinity;
         this.controls.minPolarAngle = 0;
         this.controls.maxPolarAngle = Math.PI;
         this.controls.screenSpacePanning = false;
         this.controls.enableRotate = true;
-        this.controls.addEventListener('change', () => {
-            this.earth.up.set(0, 1, 0);
-            this.earth.rotation.z = 0;
-        });
     }
 
     createEarth() {
-        // Create sphere geometry
-        const geometry = new THREE.SphereGeometry(1, 64, 32);
+        // Create sphere geometry with higher resolution
+        const geometry = new THREE.SphereGeometry(1, 128, 64); // Increased segments for smoother rendering
         
         // Load earth texture
         const textureLoader = new THREE.TextureLoader();
@@ -236,12 +317,13 @@ class Globe {
             'https://unpkg.com/three-globe/example/img/earth-topology.png'
         );
 
-        // Create material
+        // Create material with lower saturation/intensity
         const material = new THREE.MeshPhongMaterial({
             map: earthTexture,
             bumpMap: bumpTexture,
             bumpScale: 0.05,
-            shininess: 100
+            shininess: 100,
+            color: new THREE.Color(0xdddddd) // Slightly gray filter to reduce intensity
         });
 
         // Create earth mesh
@@ -272,59 +354,37 @@ class Globe {
     }
 
     setupLighting() {
-        // Stronger ambient light for global illumination
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+        // Ambient light only for global illumination
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
         this.scene.add(ambientLight);
-
-        // Main directional light (sun)
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-        directionalLight.position.set(5, 3, 5);
-        directionalLight.castShadow = true;
-        directionalLight.shadow.mapSize.width = 2048;
-        directionalLight.shadow.mapSize.height = 2048;
-        this.scene.add(directionalLight);
-
-        // Secondary directional light from the opposite side
-        const backLight = new THREE.DirectionalLight(0xffffff, 0.7);
-        backLight.position.set(-5, -3, -5);
-        this.scene.add(backLight);
-
-        // Point light for more realistic lighting
-        const pointLight = new THREE.PointLight(0xffffff, 0.8, 100);
-        pointLight.position.set(10, 10, 10);
-        this.scene.add(pointLight);
+        // All spotlights and directional lights removed for now
     }
 
     highlightCountry(lat, lng, code) {
-    // Log the coordinates of the highlighted country (centroid)
-    const latRad = lat * Math.PI / 180;
-    const lngRad = -lng * Math.PI / 180;
-    const x = Math.cos(latRad) * Math.cos(lngRad);
-    const y = Math.sin(latRad);
-    const z = Math.cos(latRad) * Math.sin(lngRad);
-    console.log(`[HIGHLIGHT] Country code: ${code}, centroid lat/lng: (${lat.toFixed(4)}, ${lng.toFixed(4)}), 3D: (${x.toFixed(4)}, ${y.toFixed(4)}, ${z.toFixed(4)})`);
-        // Remove previous highlight
+        // Remove previous highlight and reset all borders
+        if (this.allBordersGroup && this.allBordersGroup.children) {
+            this.allBordersGroup.children.forEach(line => {
+                line.material.color.set(0xcccccc);
+                line.material.linewidth = 3;
+                line.renderOrder = 1;
+            });
+        }
         this.removeHighlight();
         // Highlight country border using GeoJSON
-        let found = false;
+        let borderFound = false;
         if (this.geojson && code) {
-            // Find the border line in allBordersGroup
             this.allBordersGroup.children.forEach(line => {
                 if (line.userData && (line.userData.code === code)) {
-                    // Change color to bright red for highlight
                     line.material.color.set(0xff0033);
                     line.material.linewidth = 7;
                     line.renderOrder = 999;
                     this.highlightedBorder = line;
-                    found = true;
-                } else {
-                    // Make other borders more noticeable
-                    line.material.color.set(0xcccccc);
-                    line.material.linewidth = 3;
-                    line.renderOrder = 1;
+                    this.highlightedBorder.userData.lat = lat;
+                    this.highlightedBorder.userData.lng = lng;
+                    borderFound = true;
                 }
             });
-            if (found) {
+            if (borderFound) {
                 // Add pulsing effect to highlighted border
                 let pulseUp = true;
                 let pulse = 7;
@@ -344,23 +404,23 @@ class Globe {
                     }
                 };
                 animatePulse();
+                // Only log when actually highlighting
                 console.log('Highlighting country border for code:', code);
             } else {
-                // Debug: log all codes in the geojson
-                const codes = this.geojson.features.map(f => f.properties.code || f.properties['ISO3166-1-Alpha-2']);
-                console.warn('No border found for code:', code, 'Available codes:', codes.slice(0, 10));
+                // Only log once per missing code, not every call
+                if (!this._missingBorderCodes) this._missingBorderCodes = new Set();
+                if (!this._missingBorderCodes.has(code)) {
+                    this._missingBorderCodes.add(code);
+                    const codes = this.geojson.features.map(f => f.properties.code || f.properties['ISO3166-1-Alpha-2']);
+                    console.warn('No border found for code:', code, 'Available codes:', codes.slice(0, 10));
+                }
             }
         }
-        if (!found) {
-            console.warn('No country border drawn for code:', code);
-        }
-        // Rotate and zoom after border highlight for better focus
+        // Center camera on country after border highlight
         setTimeout(() => {
-            this.rotateToCountry(lat, lng, true);
+            this.setGlobeFocus(lat, lng, null, true);
         }, 100);
     }
-
-    // drawCountryBorder is no longer needed; highlighting is handled by changing border color in allBordersGroup
 
     animateHighlight() {
         if (!this.currentCountryMesh) return;
@@ -373,94 +433,6 @@ class Globe {
                 requestAnimationFrame(animate);
             }
         };
-        animate();
-    }
-
-    rotateToCountry(lat, lng, keepNorthUp = true) {
-    // Always keep camera target at globe center after focusing
-    if (this.controls) {
-        this.controls.target.set(0, 0, 0);
-        this.controls.update();
-    }
-    // After rotation, log the focused spot on the map
-    setTimeout(() => {
-        // Get camera world direction
-        const camDir = new THREE.Vector3();
-        this.camera.getWorldDirection(camDir);
-        // Convert camera direction to lat/lng
-        const r = Math.sqrt(camDir.x * camDir.x + camDir.y * camDir.y + camDir.z * camDir.z);
-        const camLat = Math.asin(camDir.y / r) * 180 / Math.PI;
-        const camLng = -Math.atan2(camDir.z, camDir.x) * 180 / Math.PI;
-        console.log(`[FOCUS] Camera is facing lat/lng: (${camLat.toFixed(4)}, ${camLng.toFixed(4)}), 3D: (${camDir.x.toFixed(4)}, ${camDir.y.toFixed(4)}, ${camDir.z.toFixed(4)})`);
-    }, 1600); // After spin animation
-    // Quaternion rotation to bring centroid to front
-    const latRad = lat * Math.PI / 180;
-    const lngRad = -lng * Math.PI / 180;
-    // Target vector (highlighted country)
-    const target = new THREE.Vector3(
-        Math.cos(latRad) * Math.cos(lngRad),
-        Math.sin(latRad),
-        Math.cos(latRad) * Math.sin(lngRad)
-    ).normalize();
-    // Front vector (camera looks at 0,0,0 from 0,0,3, so front is (0,0,1))
-    const front = new THREE.Vector3(0, 0, 1);
-    // Compute quaternion rotation from target to front
-    const q = new THREE.Quaternion().setFromUnitVectors(target, front);
-    // Animate rotation
-    // Always start from identity rotation for consistent focus
-    this.earth.quaternion.identity();
-    const startQuat = this.earth.quaternion.clone();
-    const endQuat = q;
-    const duration = 1500;
-    const startTime = Date.now();
-    const animate = () => {
-        const elapsed = Date.now() - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        this.earth.quaternion.slerpQuaternions(startQuat, endQuat, progress);
-        if (progress < 1) {
-            requestAnimationFrame(animate);
-        }
-    };
-    animate();
-    // Smoothly zoom in for focus
-    const targetZoom = 1.5;
-    const startZoom = this.camera.position.length();
-    const zoomDuration = 1000;
-    const zoomStartTime = Date.now();
-    const animateZoom = () => {
-        const elapsed = Date.now() - zoomStartTime;
-        const progress = Math.min(elapsed / zoomDuration, 1);
-        const easeProgress = 1 - Math.pow(1 - progress, 3);
-        const newZoom = startZoom + (targetZoom - startZoom) * easeProgress;
-        this.camera.position.setLength(newZoom);
-        if (progress < 1) {
-            requestAnimationFrame(animateZoom);
-        }
-    };
-    animateZoom();
-    }
-
-    animateRotation(targetX, targetY) {
-        const startRotationX = this.earth.rotation.x;
-        const startRotationY = this.earth.rotation.y;
-        const duration = 1500; // milliseconds
-        const startTime = Date.now();
-        
-        const animate = () => {
-            const elapsed = Date.now() - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            
-            // Easing function
-            const easeProgress = 1 - Math.pow(1 - progress, 3);
-            
-            this.earth.rotation.x = startRotationX + (targetX - startRotationX) * easeProgress;
-            this.earth.rotation.y = startRotationY + (targetY - startRotationY) * easeProgress;
-            
-            if (progress < 1) {
-                requestAnimationFrame(animate);
-            }
-        };
-        
         animate();
     }
 
@@ -507,6 +479,19 @@ class Globe {
 
     disableAutoRotate() {
         this.controls.autoRotate = false;
+    }
+
+    startGame() {
+        // Set a comfortable initial zoom (camera distance)
+        if (this.camera) {
+            this.camera.position.set(0, 0, 2.5); // Less zoomed-in than before
+        }
+        if (this.controls) {
+            this.controls.minDistance = 0.7; // Allow user to zoom in more
+            this.controls.maxDistance = 50;
+            this.controls.autoRotate = false; // Ensure spinning animation is off
+            this.controls.update();
+        }
     }
 }
 
@@ -580,8 +565,17 @@ document.addEventListener('DOMContentLoaded', () => {
     controlsDiv.appendChild(focusButton);
 
     focusButton.addEventListener('click', () => {
-        if (window.currentCountryCode) {
-            rotateToCountry(window.currentCountryCode);
+        if (globe.highlightedBorder && globe.highlightedBorder.userData) {
+            let { lat, lng, code } = globe.highlightedBorder.userData;
+            console.log('[FOCUS BUTTON] code:', code, 'lat:', lat, 'lng:', lng);
+            if (typeof lat === 'number' && typeof lng === 'number') {
+                // Use current zoom for focus
+                globe.setGlobeFocus(lat, lng, globe.camera.position.length(), false);
+            } else {
+                console.warn('No lat/lng found for highlighted country');
+            }
+        } else {
+            console.warn('No highlighted country to focus on');
         }
     });
 });
