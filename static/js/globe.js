@@ -1,29 +1,90 @@
-// Keyboard controls for globe rotation
+// Instant WASD rotation on keydown (in addition to smooth animation)
 document.addEventListener('keydown', function(e) {
     if (!globe.globeGroup) return;
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     const key = e.key && e.key.toLowerCase();
-    const rotationStep = 0.05;
-    // A/D: rotate around Y axis (orbit, accounting for tilt)
+    const rotationStep = 0.012;
     if (key === 'a') {
         globe.globeGroup.rotateY(rotationStep);
     } else if (key === 'd') {
         globe.globeGroup.rotateY(-rotationStep);
-    }
-    // W/S: rotate to top/bottom (X axis)
-    else if (key === 'w') {
+    } else if (key === 'w') {
         globe.globeGroup.rotateX(-rotationStep);
     } else if (key === 's') {
         globe.globeGroup.rotateX(rotationStep);
     }
     // R: reset view
-    else if (key === 'r') {
-         globe.globeGroup.rotation.set(0, 0, 0);
-         if (globe.controls) {
-             globe.controls.target.set(0, 0, 0);
-             globe.controls.update();
-         }
-     }
+    if (key === 'r') {
+        globe.globeGroup.rotation.set(0, 0, 0);
+        if (globe.controls) {
+            globe.controls.target.set(0, 0, 0);
+            globe.controls.update();
+        }
+    }
+});
+// --- Smooth WASD animation ---
+const pressedKeys = { w: false, a: false, s: false, d: false };
+let wasdAnimationActive = false;
+function animateWASDRotation() {
+    if (!wasdAnimationActive) {
+        wasdAnimationActive = true;
+        requestAnimationFrame(wasdStep);
+    }
+}
+
+function wasdStep() {
+    const rotationStep = 0.012; // radians per frame, smoother speed
+    let changed = false;
+    if (pressedKeys.a) {
+        globe.globeGroup.rotateY(rotationStep);
+        changed = true;
+    }
+    if (pressedKeys.d) {
+        globe.globeGroup.rotateY(-rotationStep);
+        changed = true;
+    }
+    if (pressedKeys.w) {
+        globe.globeGroup.rotateX(-rotationStep);
+        changed = true;
+    }
+    if (pressedKeys.s) {
+        globe.globeGroup.rotateX(rotationStep);
+        changed = true;
+    }
+    if (changed) {
+        requestAnimationFrame(wasdStep);
+    } else {
+        wasdAnimationActive = false;
+    }
+}
+
+document.addEventListener('keydown', function(e) {
+    if (!globe.globeGroup) return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    const key = e.key && e.key.toLowerCase();
+    if (['w','a','s','d'].includes(key)) {
+        // Only start animation if no WASD key was previously pressed
+        const wasAnyPressed = pressedKeys.w || pressedKeys.a || pressedKeys.s || pressedKeys.d;
+        pressedKeys[key] = true;
+        if (!wasAnyPressed) {
+            animateWASDRotation();
+        }
+    }
+    // R: reset view
+    if (key === 'r') {
+        globe.globeGroup.rotation.set(0, 0, 0);
+        if (globe.controls) {
+            globe.controls.target.set(0, 0, 0);
+            globe.controls.update();
+        }
+    }
+});
+
+document.addEventListener('keyup', function(e) {
+    const key = e.key && e.key.toLowerCase();
+    if (['w','a','s','d'].includes(key)) {
+        pressedKeys[key] = false;
+    }
 });
 // Minimal Globe rendering with Three.js
 class Globe {
