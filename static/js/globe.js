@@ -120,9 +120,9 @@ class Globe {
         // Add global axes to scene (always visible)
         this.globalAxesGroup = new THREE.Group();
         const axes = [
-            { dir: new THREE.Vector3(1,0,0), color: 0xff0000, label: 'X+', negLabel: 'X-' }, // latitude (red)
-            { dir: new THREE.Vector3(0,1,0), color: 0x00ff00, label: 'Y+', negLabel: 'Y-' }, // longitude (green)
-            { dir: new THREE.Vector3(0,0,1), color: 0x0000ff, label: 'Z+', negLabel: 'Z-' } // z (blue)
+            { dir: new THREE.Vector3(1,0,0), color: 0xff9090, label: 'X+', negLabel: 'X-' }, // light red
+            { dir: new THREE.Vector3(0,1,0), color: 0x90ff90, label: 'Y+', negLabel: 'Y-' }, // light green
+            { dir: new THREE.Vector3(0,0,1), color: 0x9090ff, label: 'Z+', negLabel: 'Z-' } // light blue
         ];
         axes.forEach(axis => {
             const start = axis.dir.clone().multiplyScalar(-5);
@@ -235,7 +235,7 @@ class Globe {
         }
         equatorPoints.push(equatorPoints[0].clone());
         const equatorGeometry = new THREE.BufferGeometry().setFromPoints(equatorPoints);
-        const equatorMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00 });
+    const equatorMaterial = new THREE.LineBasicMaterial({ color: 0x90ff90 }); // light green
         const equatorLine = new THREE.Line(equatorGeometry, equatorMaterial);
         this.globeGroup.add(equatorLine);
 
@@ -252,7 +252,7 @@ class Globe {
         }
         meridianPoints.push(meridianPoints[0].clone());
         const meridianGeometry = new THREE.BufferGeometry().setFromPoints(meridianPoints);
-        const meridianMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
+    const meridianMaterial = new THREE.LineBasicMaterial({ color: 0xff9090 }); // light red
         const meridianLine = new THREE.Line(meridianGeometry, meridianMaterial);
         this.globeGroup.add(meridianLine);
 
@@ -268,7 +268,7 @@ class Globe {
         }
         xCirclePoints.push(xCirclePoints[0].clone());
         const xCircleGeometry = new THREE.BufferGeometry().setFromPoints(xCirclePoints);
-        const xCircleMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff });
+    const xCircleMaterial = new THREE.LineBasicMaterial({ color: 0x9090ff }); // light blue
         const xCircleLine = new THREE.Line(xCircleGeometry, xCircleMaterial);
         this.globeGroup.add(xCircleLine);
     }
