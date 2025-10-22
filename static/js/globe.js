@@ -1,66 +1,32 @@
+// Keyboard controls for globe rotation
+document.addEventListener('keydown', function(e) {
+    if (!globe.globeGroup) return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    const key = e.key && e.key.toLowerCase();
+    const rotationStep = 0.05;
+    // A/D: rotate around Y axis (orbit, accounting for tilt)
+    if (key === 'a') {
+        globe.globeGroup.rotateY(rotationStep);
+    } else if (key === 'd') {
+        globe.globeGroup.rotateY(-rotationStep);
+    }
+    // W/S: rotate to top/bottom (X axis)
+    else if (key === 'w') {
+        globe.globeGroup.rotateX(-rotationStep);
+    } else if (key === 's') {
+        globe.globeGroup.rotateX(rotationStep);
+    }
+    // R: reset view
+    else if (key === 'r') {
+         globe.globeGroup.rotation.set(0, 0, 0);
+         if (globe.controls) {
+             globe.controls.target.set(0, 0, 0);
+             globe.controls.update();
+         }
+     }
+});
 // Minimal Globe rendering with Three.js
 class Globe {
-    centerOnCountry(code, geojson) {
-        // ...existing code...
-        // Remove previous debug line to centroid if any
-        if (this.centroidLine) {
-            this.globeGroup.remove(this.centroidLine);
-            this.centroidLine = null;
-        }
-        // Country centering logic: rotate centroid to front, keep latitude parallel to ground
-        const feature = geojson.features.find(f => {
-            const countryCode = f.properties.code || f.properties['ISO3166-1-Alpha-2'];
-            return countryCode === code;
-        });
-        if (!feature) return;
-
-        // Collect all border points
-        const coords = feature.geometry.type === 'Polygon'
-            ? feature.geometry.coordinates
-            : feature.geometry.coordinates.flat();
-        let allPoints = [];
-        coords.forEach(ring => {
-            ring.forEach(([lng, lat]) => {
-                const latRad = lat * Math.PI / 180;
-                const lngRad = -lng * Math.PI / 180;
-                const radius = 1.01;
-                allPoints.push([
-                    Math.cos(latRad) * Math.cos(lngRad) * radius,
-                    Math.sin(latRad) * radius,
-                    Math.cos(latRad) * Math.sin(lngRad) * radius
-                ]);
-            });
-        });
-        // Calculate centroid
-        const centroid = allPoints.reduce((acc, p) => {
-            acc[0] += p[0];
-            acc[1] += p[1];
-            acc[2] += p[2];
-            return acc;
-        }, [0, 0, 0]).map(v => v / allPoints.length);
-        const centroidVec3 = new THREE.Vector3(centroid[0], centroid[1], centroid[2]);
-
-        // Convert centroid to spherical coordinates
-        const r = Math.sqrt(centroid[0]**2 + centroid[1]**2 + centroid[2]**2);
-        const lat = Math.asin(centroid[1] / r); // latitude in radians
-        const lng = Math.atan2(centroid[2], centroid[0]); // longitude in radians
-
-        // Step 1: rotate globe so centroid is at front (positive x-axis)
-        // Find quaternion that rotates centroidVec3 to (1,0,0)
-        const centroidNorm = centroidVec3.clone().normalize();
-        const frontVec = new THREE.Vector3(1, 0, 0);
-        const quaternion = new THREE.Quaternion().setFromUnitVectors(centroidNorm, frontVec);
-        this.globeGroup.setRotationFromQuaternion(quaternion);
-
-        // Draw debug line from globe center to country centroid
-        const lineGeo = new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(0,0,0),
-            centroidVec3
-        ]);
-        const lineMat = new THREE.LineBasicMaterial({ color: 0xffff00 });
-        this.centroidLine = new THREE.Line(lineGeo, lineMat);
-        this.globeGroup.add(this.centroidLine);
-    }
     drawCountryBorders(feature, color = 0xcccccc) {
         const coords = feature.geometry.type === 'Polygon'
             ? feature.geometry.coordinates
@@ -189,7 +155,6 @@ class Globe {
             const countryCode = feature.properties.code || feature.properties['ISO3166-1-Alpha-2'];
             if (countryCode === code) {
                 this.drawCountryBorders(feature, 0xff0033);
-                this.centerOnCountry(code, geojson);
             }
         });
     }
@@ -248,70 +213,3 @@ fetch('/static/data/world-countries.geojson')
     // To highlight a country, call globe.highlightCountry(code, window.geojson);
   });
 
-// Keyboard controls for globe rotation
-// Smooth WASD rotation animation
-
-// Continuous smooth WASD rotation
-
-const pressedKeys = {};
-let rotationAnimationActive = false;
-function animateContinuousRotation() {
-    if (!rotationAnimationActive) {
-        rotationAnimationActive = true;
-        requestAnimationFrame(rotationStep);
-    }
-}
-
-function rotationStep() {
-    const rotateStep = 0.025; // radians per frame, fixed speed
-    const minZ = -Math.PI / 2;
-    const maxZ = Math.PI / 2;
-    let changed = false;
-    // W/S: rotate up/down (around Z axis)
-    if (pressedKeys['w']) {
-        globe.globeGroup.rotation.z = Math.max(minZ, globe.globeGroup.rotation.z - rotateStep);
-        changed = true;
-    }
-    if (pressedKeys['s']) {
-        globe.globeGroup.rotation.z = Math.min(maxZ, globe.globeGroup.rotation.z + rotateStep);
-        changed = true;
-    }
-    // A/D: rotate left/right (around Y axis)
-    if (pressedKeys['a']) {
-        globe.globeGroup.rotation.y -= rotateStep;
-        changed = true;
-    }
-    if (pressedKeys['d']) {
-        globe.globeGroup.rotation.y += rotateStep;
-        changed = true;
-    }
-    if (changed) {
-        requestAnimationFrame(rotationStep);
-    } else {
-        rotationAnimationActive = false;
-    }
-}
-
-document.addEventListener('keydown', function(e) {
-    if (!globe.globeGroup) return;
-    const key = e.key && e.key.toLowerCase();
-    if (['w','a','s','d'].includes(key)) {
-        pressedKeys[key] = true;
-        animateContinuousRotation();
-    }
-    // R: reset view
-    if (key === 'r') {
-        globe.globeGroup.rotation.set(0, 0, 0);
-        if (globe.controls) {
-            globe.controls.target.set(0, 0, 0);
-            globe.controls.update();
-        }
-    }
-});
-
-document.addEventListener('keyup', function(e) {
-    const key = e.key && e.key.toLowerCase();
-    if (['w','a','s','d'].includes(key)) {
-        pressedKeys[key] = false;
-    }
-});
