@@ -149,8 +149,8 @@ class Globe {
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
         this.controls.target.set(0, 0, 0);
-        this.controls.minDistance = 0.1;
-        this.controls.maxDistance = 10;
+        this.controls.minDistance = 1.2;
+        this.controls.maxDistance = 5;
         this.scene.background = new THREE.Color(0x000011);
         // Add black sphere at center
         const sphereGeometry = new THREE.SphereGeometry(1, 64, 64);
@@ -247,3 +247,34 @@ fetch('/static/data/world-countries.geojson')
     window.geojson = data;
     // To highlight a country, call globe.highlightCountry(code, window.geojson);
   });
+
+// Keyboard controls for globe rotation
+document.addEventListener('keydown', function(e) {
+    if (!globe.globeGroup) return;
+    const rotateStep = 0.05; // radians, adjust for sensitivity
+    // Clamp Z axis rotation to [-Math.PI/2, Math.PI/2] (north/south pole)
+    const minZ = -Math.PI / 2;
+    const maxZ = Math.PI / 2;
+    // W/S: rotate up/down (around Z axis)
+    if (e.key && e.key.toLowerCase() === 'w') {
+        globe.globeGroup.rotation.z = Math.max(minZ, globe.globeGroup.rotation.z - rotateStep);
+    }
+    if (e.key && e.key.toLowerCase() === 's') {
+        globe.globeGroup.rotation.z = Math.min(maxZ, globe.globeGroup.rotation.z + rotateStep);
+    }
+    // A/D: rotate left/right (around Y axis)
+    if (e.key && e.key.toLowerCase() === 'a') {
+        globe.globeGroup.rotation.y -= rotateStep;
+    }
+    if (e.key && e.key.toLowerCase() === 'd') {
+        globe.globeGroup.rotation.y += rotateStep;
+    }
+    // R: reset view
+    if (e.key && e.key.toLowerCase() === 'r') {
+        globe.globeGroup.rotation.set(0, 0, 0);
+        if (globe.controls) {
+            globe.controls.target.set(0, 0, 0);
+            globe.controls.update();
+        }
+    }
+});
