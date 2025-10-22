@@ -100,7 +100,8 @@ def start_game():
         'current_country': {
             'lat': game_state['current_country']['lat'],
             'lng': game_state['current_country']['lng'],
-            'code': game_state['current_country']['code']
+            'code': game_state['current_country']['code'],
+            'name': game_state['current_country']['name']
         },
         'total_countries': game_state['total_countries']
     })

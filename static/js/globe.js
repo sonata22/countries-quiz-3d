@@ -89,6 +89,12 @@ document.addEventListener('keyup', function(e) {
 });
 // Minimal Globe rendering with Three.js
 class Globe {
+    disableAutoRotate() {
+        // Placeholder for compatibility with game.js
+    }
+    enableAutoRotate() {
+        // Placeholder for compatibility with game.js
+    }
     drawCountryBorders(feature, color = 0xcccccc) {
         const coords = feature.geometry.type === 'Polygon'
             ? feature.geometry.coordinates

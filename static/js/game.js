@@ -1,3 +1,4 @@
+console.log('game.js loaded');
 class Game {
     constructor() {
         console.log('Game constructor called');
@@ -85,21 +86,24 @@ class Game {
                 return;
             }
             const data = await response.json();
-            console.log('Response JSON:', data);
+            console.log('Response JSON from /api/start_game:', data);
             if (!data.success) {
                 console.error('Backend error:', data.error || data);
                 this.showFeedback('Backend error: Unable to start quiz. Please try again later.', 'error');
                 this.showLoading(false);
                 return;
             }
-            
+            if (!data.current_country) {
+                console.error('No current_country in backend response!', data);
+            } else {
+                console.log('current_country:', data.current_country);
+            }
             this.currentCountry = data.current_country;
             this.totalCountries = data.total_countries;
             this.score = 0;
             this.answeredCountries = 0;
             this.startTime = Date.now();
             this.isGameActive = true;
-            
             this.updateUI();
             this.showScreen('game-screen');
             // Ensure the highlighted country shape is shown and focused
@@ -215,8 +219,16 @@ class Game {
     }
 
     highlightCountry(currentCountry) {
+        console.log('highlightCountry called with:', currentCountry);
         if (currentCountry && window.geojson) {
+            if (!currentCountry.code) {
+                console.error('currentCountry.code is missing!', currentCountry);
+            }
             globe.highlightCountry(currentCountry.code, window.geojson);
+        } else {
+            if (!window.geojson) {
+                console.error('window.geojson is not loaded yet!');
+            }
         }
     }
 
@@ -310,14 +322,23 @@ class Game {
 }
 
 // Delay Game initialization until globe is ready
-function initGameWhenGlobeReady() {
-    if (window.globe && typeof window.globe.disableAutoRotate === 'function') {
+function fullyInitGame() {
+    console.log('fullyInitGame called');
+    if (!window.globe) {
+        console.log('window.globe is not ready');
+    } else if (typeof window.globe.disableAutoRotate !== 'function') {
+        console.log('window.globe.disableAutoRotate is not a function');
+    } else if (!document.getElementById('start-btn')) {
+        console.log('start-btn is not in the DOM');
+    }
+    if (window.globe && typeof window.globe.disableAutoRotate === 'function' && document.getElementById('start-btn')) {
+        console.log('Instantiating Game class...');
         window.game = new Game();
     } else {
-        setTimeout(initGameWhenGlobeReady, 50);
+        setTimeout(fullyInitGame, 50);
     }
 }
-initGameWhenGlobeReady();
+document.addEventListener('DOMContentLoaded', fullyInitGame);
 
 // Handle Enter key globally for continuing after wrong answers
 document.addEventListener('keypress', (e) => {
