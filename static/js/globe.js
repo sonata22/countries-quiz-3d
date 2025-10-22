@@ -25,6 +25,11 @@ document.addEventListener('keydown', function(e) {
 // --- Smooth WASD animation ---
 const pressedKeys = { w: false, a: false, s: false, d: false };
 let wasdAnimationActive = false;
+let velocityY = 0, velocityX = 0;
+const maxVelocity = 0.04; // max radians/frame
+const acceleration = 0.012; // how fast to accelerate
+const damping = 0.15; // how quickly to slow down
+
 function animateWASDRotation() {
     if (!wasdAnimationActive) {
         wasdAnimationActive = true;
@@ -33,28 +38,34 @@ function animateWASDRotation() {
 }
 
 function wasdStep() {
-    const rotationStep = 0.012; // radians per frame, smoother speed
-    let changed = false;
-    if (pressedKeys.a) {
-        globe.globeGroup.rotateY(rotationStep);
-        changed = true;
+    // Determine target velocities
+    let targetY = 0, targetX = 0;
+    if (pressedKeys.a) targetY += maxVelocity;
+    if (pressedKeys.d) targetY -= maxVelocity;
+    if (pressedKeys.w) targetX -= maxVelocity;
+    if (pressedKeys.s) targetX += maxVelocity;
+
+    // Smoothly interpolate velocity toward target
+    velocityY += (targetY - velocityY) * acceleration;
+    velocityY *= (1 - damping);
+    velocityX += (targetX - velocityX) * acceleration;
+    velocityX *= (1 - damping);
+
+    // Apply rotation
+    if (Math.abs(velocityY) > 0.0001) {
+        globe.globeGroup.rotateY(velocityY);
     }
-    if (pressedKeys.d) {
-        globe.globeGroup.rotateY(-rotationStep);
-        changed = true;
+    if (Math.abs(velocityX) > 0.0001) {
+        globe.globeGroup.rotateX(velocityX);
     }
-    if (pressedKeys.w) {
-        globe.globeGroup.rotateX(-rotationStep);
-        changed = true;
-    }
-    if (pressedKeys.s) {
-        globe.globeGroup.rotateX(rotationStep);
-        changed = true;
-    }
-    if (changed) {
+
+    // Continue animation if any velocity or key is active
+    if (pressedKeys.a || pressedKeys.d || pressedKeys.w || pressedKeys.s || Math.abs(velocityY) > 0.0001 || Math.abs(velocityX) > 0.0001) {
         requestAnimationFrame(wasdStep);
     } else {
         wasdAnimationActive = false;
+        velocityY = 0;
+        velocityX = 0;
     }
 }
 
@@ -254,6 +265,22 @@ class Globe {
         const meridianMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
         const meridianLine = new THREE.Line(meridianGeometry, meridianMaterial);
         this.globeGroup.add(meridianLine);
+
+        // X axis circle (blue, full circle around X/red axis)
+        const xCirclePoints = [];
+        for (let theta = 0; theta <= 360; theta += 2) {
+            const rad = theta * Math.PI / 180;
+            const radius = 1.02;
+            const x = 0;
+            const y = radius * Math.cos(rad);
+            const z = radius * Math.sin(rad);
+            xCirclePoints.push(new THREE.Vector3(x, y, z));
+        }
+        xCirclePoints.push(xCirclePoints[0].clone());
+        const xCircleGeometry = new THREE.BufferGeometry().setFromPoints(xCirclePoints);
+        const xCircleMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff });
+        const xCircleLine = new THREE.Line(xCircleGeometry, xCircleMaterial);
+        this.globeGroup.add(xCircleLine);
     }
 
     animate() {
