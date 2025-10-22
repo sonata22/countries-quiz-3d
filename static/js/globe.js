@@ -1,3 +1,4 @@
+const COUNTRY_FILL_COLOR = 0x222222;
 // Instant WASD rotation on keydown (in addition to smooth animation)
 document.addEventListener('keydown', function(e) {
     if (!globe.globeGroup) return;
@@ -89,6 +90,90 @@ document.addEventListener('keyup', function(e) {
 });
 // Minimal Globe rendering with Three.js
 class Globe {
+    fillCountryArea(code, geojson, color = COUNTRY_FILL_COLOR) {
+        // Create filledGroup if not present
+        if (!this.filledGroup) {
+            this.filledGroup = new THREE.Group();
+            this.globeGroup.add(this.filledGroup);
+        }
+        // Remove previous meshes for this code
+        const toRemove = [];
+        this.filledGroup.children.forEach(mesh => {
+            if (mesh.userData && mesh.userData.code === code) {
+                toRemove.push(mesh);
+            }
+        });
+        toRemove.forEach(mesh => this.filledGroup.remove(mesh));
+
+        geojson.features.forEach(feature => {
+            let countryId = feature.properties.code || feature.properties['ISO3166-1-Alpha-2'];
+            if (countryId === '-99') {
+                countryId = feature.properties.name || feature.properties['NAME'];
+            }
+            if (countryId === code) {
+                let polygons = [];
+                if (feature.geometry.type === 'Polygon') {
+                    polygons = [feature.geometry.coordinates];
+                } else if (feature.geometry.type === 'MultiPolygon') {
+                    polygons = feature.geometry.coordinates;
+                }
+                polygons.forEach(polygon => {
+                    // Each polygon may have holes (first ring is outer, rest are holes)
+                    // Project lat/lon to 3D, then to 2D for triangulation, then back to 3D
+                    // We'll use a simple equirectangular projection for triangulation
+                    const rings2D = polygon.map(ring => ring.map(([lng, lat]) => new THREE.Vector2(lng, lat)));
+                    const shape = new THREE.Shape(rings2D[0]);
+                    for (let i = 1; i < rings2D.length; i++) {
+                        shape.holes.push(new THREE.Path(rings2D[i]));
+                    }
+                    const geometry2D = new THREE.ShapeGeometry(shape, 12);
+                    // Project 2D geometry vertices back to sphere
+                    const position = geometry2D.getAttribute('position');
+                    for (let i = 0; i < position.count; i++) {
+                        const lng = position.getX(i);
+                        const lat = position.getY(i);
+                        const latRad = lat * Math.PI / 180;
+                        const lngRad = -lng * Math.PI / 180;
+                        const radius = 1.008;
+                        const x = Math.cos(latRad) * Math.cos(lngRad) * radius;
+                        const y = Math.sin(latRad) * radius;
+                        const z = Math.cos(latRad) * Math.sin(lngRad) * radius;
+                        position.setXYZ(i, x, y, z);
+                    }
+                    const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, side: THREE.DoubleSide });
+                    const mesh = new THREE.Mesh(geometry2D, material);
+                    mesh.userData.code = code;
+                    this.filledGroup.add(mesh);
+                });
+            }
+        });
+    }
+    fillCountry(code, geojson, color = COUNTRY_FILL_COLOR) {
+        geojson.features.forEach(feature => {
+            const countryCode = feature.properties.code || feature.properties['ISO3166-1-Alpha-2'];
+            if (countryCode === code) {
+                const coords = feature.geometry.type === 'Polygon'
+                    ? feature.geometry.coordinates
+                    : feature.geometry.coordinates.flat();
+                coords.forEach(ring => {
+                    const points = ring.map(([lng, lat]) => {
+                        const latRad = lat * Math.PI / 180;
+                        const lngRad = -lng * Math.PI / 180;
+                        const radius = 1.009;
+                        return new THREE.Vector3(
+                            Math.cos(latRad) * Math.cos(lngRad) * radius,
+                            Math.sin(latRad) * radius,
+                            Math.cos(latRad) * Math.sin(lngRad) * radius
+                        );
+                    });
+                    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                    const material = new THREE.LineBasicMaterial({ color });
+                    material.linewidth = 3;
+                    this.borderGroup.add(new THREE.Line(geometry, material));
+                });
+            }
+        });
+    }
     disableAutoRotate() {
         // Placeholder for compatibility with game.js
     }
@@ -211,18 +296,70 @@ class Globe {
     drawBorders(geojson) {
         this.borderGroup.clear();
         geojson.features.forEach(feature => {
+            let countryId = feature.properties.code || feature.properties['ISO3166-1-Alpha-2'];
+            if (countryId === '-99') {
+                countryId = feature.properties.name || feature.properties['NAME'];
+            }
             this.drawCountryBorders(feature, 0xcccccc);
         });
     }
 
     highlightCountry(code, geojson) {
+        // Remove previous highlight lines for this country (red)
+        const toRemove = [];
         this.borderGroup.children.forEach(line => {
-            line.material.color.set(0xcccccc);
+            if (line.material.color.getHex() === 0xff0033) {
+                toRemove.push(line);
+            } else {
+                line.material.color.set(0xcccccc);
+            }
         });
+        toRemove.forEach(line => this.borderGroup.remove(line));
         geojson.features.forEach(feature => {
-            const countryCode = feature.properties.code || feature.properties['ISO3166-1-Alpha-2'];
-            if (countryCode === code) {
+            let countryId = feature.properties.code || feature.properties['ISO3166-1-Alpha-2'];
+            if (countryId === '-99') {
+                countryId = feature.properties.name || feature.properties['NAME'];
+            }
+            if (countryId === code) {
                 this.drawCountryBorders(feature, 0xff0033);
+            }
+        });
+    }
+
+    fillCountry(code, geojson, color = 0x90ff90) {
+        // Remove previous fill lines for this country (green)
+        const toRemove = [];
+        this.borderGroup.children.forEach(line => {
+            if (line.material.color.getHex() === color) {
+                toRemove.push(line);
+            }
+        });
+        toRemove.forEach(line => this.borderGroup.remove(line));
+        geojson.features.forEach(feature => {
+            let countryId = feature.properties.code || feature.properties['ISO3166-1-Alpha-2'];
+            if (countryId === '-99') {
+                countryId = feature.properties.name || feature.properties['NAME'];
+            }
+            if (countryId === code) {
+                const coords = feature.geometry.type === 'Polygon'
+                    ? feature.geometry.coordinates
+                    : feature.geometry.coordinates.flat();
+                coords.forEach(ring => {
+                    const points = ring.map(([lng, lat]) => {
+                        const latRad = lat * Math.PI / 180;
+                        const lngRad = -lng * Math.PI / 180;
+                        const radius = 1.009;
+                        return new THREE.Vector3(
+                            Math.cos(latRad) * Math.cos(lngRad) * radius,
+                            Math.sin(latRad) * radius,
+                            Math.cos(latRad) * Math.sin(lngRad) * radius
+                        );
+                    });
+                    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                    const material = new THREE.LineBasicMaterial({ color });
+                    material.linewidth = 3;
+                    this.borderGroup.add(new THREE.Line(geometry, material));
+                });
             }
         });
     }

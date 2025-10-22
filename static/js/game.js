@@ -164,6 +164,14 @@ class Game {
         if (data.correct) {
             this.score = data.score;
             this.showFeedback(`✅ Correct! Well done!`, 'success');
+            // Fill the guessed country area with green
+            if (this.currentCountry && window.geojson) {
+                let code = this.currentCountry.code;
+                if (code === '-99') {
+                    code = this.currentCountry.name || this.currentCountry.NAME;
+                }
+                globe.fillCountryArea(code, window.geojson, 0x222222);
+            }
         } else {
             this.showFeedback(`❌ Incorrect. The correct answer was: ${data.correct_answer}`, 'error');
         }
