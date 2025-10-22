@@ -26,9 +26,7 @@ document.addEventListener('keydown', function(e) {
 const pressedKeys = { w: false, a: false, s: false, d: false };
 let wasdAnimationActive = false;
 let velocityY = 0, velocityX = 0;
-const maxVelocity = 0.04; // max radians/frame
-const acceleration = 0.012; // how fast to accelerate
-const damping = 0.15; // how quickly to slow down
+const maxVelocity = 0.02; // max radians/frame
 
 function animateWASDRotation() {
     if (!wasdAnimationActive) {
@@ -38,34 +36,26 @@ function animateWASDRotation() {
 }
 
 function wasdStep() {
-    // Determine target velocities
-    let targetY = 0, targetX = 0;
-    if (pressedKeys.a) targetY += maxVelocity;
-    if (pressedKeys.d) targetY -= maxVelocity;
-    if (pressedKeys.w) targetX -= maxVelocity;
-    if (pressedKeys.s) targetX += maxVelocity;
-
-    // Smoothly interpolate velocity toward target
-    velocityY += (targetY - velocityY) * acceleration;
-    velocityY *= (1 - damping);
-    velocityX += (targetX - velocityX) * acceleration;
-    velocityX *= (1 - damping);
+    // Set velocity directly based on pressed keys (no acceleration)
+    let velocityY = 0, velocityX = 0;
+    if (pressedKeys.a) velocityY += maxVelocity;
+    if (pressedKeys.d) velocityY -= maxVelocity;
+    if (pressedKeys.w) velocityX -= maxVelocity;
+    if (pressedKeys.s) velocityX += maxVelocity;
 
     // Apply rotation
-    if (Math.abs(velocityY) > 0.0001) {
+    if (velocityY !== 0) {
         globe.globeGroup.rotateY(velocityY);
     }
-    if (Math.abs(velocityX) > 0.0001) {
+    if (velocityX !== 0) {
         globe.globeGroup.rotateX(velocityX);
     }
 
-    // Continue animation if any velocity or key is active
-    if (pressedKeys.a || pressedKeys.d || pressedKeys.w || pressedKeys.s || Math.abs(velocityY) > 0.0001 || Math.abs(velocityX) > 0.0001) {
+    // Continue animation if any key is active
+    if (pressedKeys.a || pressedKeys.d || pressedKeys.w || pressedKeys.s) {
         requestAnimationFrame(wasdStep);
     } else {
         wasdAnimationActive = false;
-        velocityY = 0;
-        velocityX = 0;
     }
 }
 
