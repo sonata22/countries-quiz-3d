@@ -249,32 +249,69 @@ fetch('/static/data/world-countries.geojson')
   });
 
 // Keyboard controls for globe rotation
-document.addEventListener('keydown', function(e) {
-    if (!globe.globeGroup) return;
-    const rotateStep = 0.05; // radians, adjust for sensitivity
-    // Clamp Z axis rotation to [-Math.PI/2, Math.PI/2] (north/south pole)
+// Smooth WASD rotation animation
+
+// Continuous smooth WASD rotation
+
+const pressedKeys = {};
+let rotationAnimationActive = false;
+function animateContinuousRotation() {
+    if (!rotationAnimationActive) {
+        rotationAnimationActive = true;
+        requestAnimationFrame(rotationStep);
+    }
+}
+
+function rotationStep() {
+    const rotateStep = 0.025; // radians per frame, fixed speed
     const minZ = -Math.PI / 2;
     const maxZ = Math.PI / 2;
+    let changed = false;
     // W/S: rotate up/down (around Z axis)
-    if (e.key && e.key.toLowerCase() === 'w') {
+    if (pressedKeys['w']) {
         globe.globeGroup.rotation.z = Math.max(minZ, globe.globeGroup.rotation.z - rotateStep);
+        changed = true;
     }
-    if (e.key && e.key.toLowerCase() === 's') {
+    if (pressedKeys['s']) {
         globe.globeGroup.rotation.z = Math.min(maxZ, globe.globeGroup.rotation.z + rotateStep);
+        changed = true;
     }
     // A/D: rotate left/right (around Y axis)
-    if (e.key && e.key.toLowerCase() === 'a') {
+    if (pressedKeys['a']) {
         globe.globeGroup.rotation.y -= rotateStep;
+        changed = true;
     }
-    if (e.key && e.key.toLowerCase() === 'd') {
+    if (pressedKeys['d']) {
         globe.globeGroup.rotation.y += rotateStep;
+        changed = true;
+    }
+    if (changed) {
+        requestAnimationFrame(rotationStep);
+    } else {
+        rotationAnimationActive = false;
+    }
+}
+
+document.addEventListener('keydown', function(e) {
+    if (!globe.globeGroup) return;
+    const key = e.key && e.key.toLowerCase();
+    if (['w','a','s','d'].includes(key)) {
+        pressedKeys[key] = true;
+        animateContinuousRotation();
     }
     // R: reset view
-    if (e.key && e.key.toLowerCase() === 'r') {
+    if (key === 'r') {
         globe.globeGroup.rotation.set(0, 0, 0);
         if (globe.controls) {
             globe.controls.target.set(0, 0, 0);
             globe.controls.update();
         }
+    }
+});
+
+document.addEventListener('keyup', function(e) {
+    const key = e.key && e.key.toLowerCase();
+    if (['w','a','s','d'].includes(key)) {
+        pressedKeys[key] = false;
     }
 });
