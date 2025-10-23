@@ -331,6 +331,69 @@ class Globe {
                 this.drawCountryBorders(feature, 0xff0033);
             }
         });
+        // --- three-globe inspired centering logic ---
+        // Find centroid
+        const feature = geojson.features.find(f => {
+            let countryId = f.properties.code || f.properties['ISO3166-1-Alpha-2'];
+            if (countryId === '-99') countryId = f.properties.name || f.properties['NAME'];
+            return countryId === code;
+        });
+        if (!feature) return;
+        let points = [];
+        if (feature.geometry.type === 'Polygon') {
+            feature.geometry.coordinates.forEach(ring => points.push(...ring));
+        } else if (feature.geometry.type === 'MultiPolygon') {
+            feature.geometry.coordinates.forEach(poly => poly.forEach(ring => points.push(...ring)));
+        }
+        if (!points.length) return;
+        let sumLat = 0, sumLng = 0;
+        points.forEach(([lng, lat]) => { sumLat += lat; sumLng += lng; });
+        const centroidLat = sumLat / points.length;
+        const centroidLng = sumLng / points.length;
+        // Convert to 3D position on sphere
+        const latRad = centroidLat * Math.PI / 180;
+        const lngRad = -centroidLng * Math.PI / 180;
+        const radius = 1.01;
+        const target = new THREE.Vector3(
+            Math.cos(latRad) * Math.cos(lngRad) * radius,
+            Math.sin(latRad) * radius,
+            Math.cos(latRad) * Math.sin(lngRad) * radius
+        );
+        // Animate OrbitControls target and camera position
+        const startTarget = this.controls.target.clone();
+        const startPos = this.camera.position.clone();
+        // Camera distance stays the same
+        const camDist = startPos.length();
+        let t = 0;
+        const duration = 0.8;
+        const animate = () => {
+            t += 0.04;
+            const ease = 1 - Math.pow(1-t/duration, 2); // ease-out
+            // Interpolate target
+            this.controls.target.lerpVectors(startTarget, target, Math.min(ease, 1));
+            // Camera position: always look from same distance, above north pole if possible
+            // Use spherical coordinates
+            const phi = Math.PI/2 - latRad; // polar angle
+            const theta = lngRad; // azimuthal angle
+            // Always keep north pole up
+            const camPhi = Math.max(0.15, Math.min(Math.PI-0.15, phi));
+            const camTheta = theta;
+            const camX = camDist * Math.sin(camPhi) * Math.cos(camTheta);
+            const camY = camDist * Math.cos(camPhi);
+            const camZ = camDist * Math.sin(camPhi) * Math.sin(camTheta);
+            this.camera.position.lerp(new THREE.Vector3(camX, camY, camZ), Math.min(ease, 1));
+            this.camera.lookAt(this.controls.target);
+            this.controls.update();
+            if (t < duration) {
+                requestAnimationFrame(animate);
+            } else {
+                this.controls.target.copy(target);
+                this.camera.position.set(camX, camY, camZ);
+                this.camera.lookAt(target);
+                this.controls.update();
+            }
+        };
+        animate();
     }
 
     fillCountry(code, geojson, color = 0x90ff90) {
