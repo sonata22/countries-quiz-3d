@@ -209,46 +209,46 @@ class Globe {
 
 
         // Add global axes to scene (always visible)
-        this.globalAxesGroup = new THREE.Group();
-        const axes = [
-            { dir: new THREE.Vector3(1,0,0), color: 0xff0000, label: 'X+', negLabel: 'X-' }, // bright red
-            { dir: new THREE.Vector3(0,1,0), color: 0x00ff00, label: 'Y+', negLabel: 'Y-' }, // bright green
-            { dir: new THREE.Vector3(0,0,1), color: 0x0000ff, label: 'Z+', negLabel: 'Z-' } // bright blue
-        ];
-        axes.forEach(axis => {
-            const start = axis.dir.clone().multiplyScalar(-5);
-            const end = axis.dir.clone().multiplyScalar(5);
-            const lineGeo = new THREE.BufferGeometry().setFromPoints([start, end]);
-            const lineMat = new THREE.LineBasicMaterial({ color: axis.color });
-            const line = new THREE.Line(lineGeo, lineMat);
-            this.globalAxesGroup.add(line);
-            // Add labels at both ends
-            const makeLabel = (text, position, color) => {
-                const canvas = document.createElement('canvas');
-                canvas.width = 128;
-                canvas.height = 32;
-                const ctx = canvas.getContext('2d');
-                ctx.font = 'bold 22px Arial';
-                // Use pure RGB for label color
-                let rgb = '#ffffff';
-                if (color === 0xff0000) rgb = '#ff0000';
-                if (color === 0x00ff00) rgb = '#00ff00';
-                if (color === 0x0000ff) rgb = '#0000ff';
-                ctx.fillStyle = rgb;
-                ctx.shadowColor = '#000';
-                ctx.shadowBlur = 6;
-                ctx.fillText(text, 10, 24);
-                const texture = new THREE.CanvasTexture(canvas);
-                const spriteMat = new THREE.SpriteMaterial({ map: texture });
-                const sprite = new THREE.Sprite(spriteMat);
-                sprite.position.copy(position);
-                sprite.scale.set(0.6, 0.18, 1);
-                return sprite;
-            };
-            this.globalAxesGroup.add(makeLabel(axis.label, end, axis.color));
-            this.globalAxesGroup.add(makeLabel(axis.negLabel, start, axis.color));
-        });
-        this.globeGroup.add(this.globalAxesGroup);
+        // this.globalAxesGroup = new THREE.Group();
+        // const axes = [
+        //     { dir: new THREE.Vector3(1,0,0), color: 0xff0000, label: 'X+', negLabel: 'X-' }, // bright red
+        //     { dir: new THREE.Vector3(0,1,0), color: 0x00ff00, label: 'Y+', negLabel: 'Y-' }, // bright green
+        //     { dir: new THREE.Vector3(0,0,1), color: 0x0000ff, label: 'Z+', negLabel: 'Z-' } // bright blue
+        // ];
+        // axes.forEach(axis => {
+        //     const start = axis.dir.clone().multiplyScalar(-5);
+        //     const end = axis.dir.clone().multiplyScalar(5);
+        //     const lineGeo = new THREE.BufferGeometry().setFromPoints([start, end]);
+        //     const lineMat = new THREE.LineBasicMaterial({ color: axis.color });
+        //     const line = new THREE.Line(lineGeo, lineMat);
+        //     this.globalAxesGroup.add(line);
+        //     // Add labels at both ends
+        //     const makeLabel = (text, position, color) => {
+        //         const canvas = document.createElement('canvas');
+        //         canvas.width = 128;
+        //         canvas.height = 32;
+        //         const ctx = canvas.getContext('2d');
+        //         ctx.font = 'bold 22px Arial';
+        //         // Use pure RGB for label color
+        //         let rgb = '#ffffff';
+        //         if (color === 0xff0000) rgb = '#ff0000';
+        //         if (color === 0x00ff00) rgb = '#00ff00';
+        //         if (color === 0x0000ff) rgb = '#0000ff';
+        //         ctx.fillStyle = rgb;
+        //         ctx.shadowColor = '#000';
+        //         ctx.shadowBlur = 6;
+        //         ctx.fillText(text, 10, 24);
+        //         const texture = new THREE.CanvasTexture(canvas);
+        //         const spriteMat = new THREE.SpriteMaterial({ map: texture });
+        //         const sprite = new THREE.Sprite(spriteMat);
+        //         sprite.position.copy(position);
+        //         sprite.scale.set(0.6, 0.18, 1);
+        //         return sprite;
+        //     };
+        //     this.globalAxesGroup.add(makeLabel(axis.label, end, axis.color));
+        //     this.globalAxesGroup.add(makeLabel(axis.negLabel, start, axis.color));
+        // });
+        // this.globeGroup.add(this.globalAxesGroup);
         // Initialize camera before using its properties
         this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
         // Calculate camera x so globe occupies 80% of screen width
