@@ -275,7 +275,7 @@ class Globe {
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
         this.controls.target.set(0, 0, 0);
-        this.controls.minDistance = 1.2;
+        this.controls.minDistance = 0.1;
         this.controls.maxDistance = 5;
         this.scene.background = new THREE.Color(0x000011);
         // Add black sphere at center
@@ -371,25 +371,23 @@ class Globe {
             const ease = 1 - Math.pow(1-t/duration, 2); // ease-out
             // Interpolate target
             this.controls.target.lerpVectors(startTarget, target, Math.min(ease, 1));
-            // Camera position: always look from same distance, above north pole if possible
-            // Use spherical coordinates
+            // Camera position: always look from same distance
             const phi = Math.PI/2 - latRad; // polar angle
             const theta = lngRad; // azimuthal angle
-            // Always keep north pole up
             const camPhi = Math.max(0.15, Math.min(Math.PI-0.15, phi));
             const camTheta = theta;
             const camX = camDist * Math.sin(camPhi) * Math.cos(camTheta);
             const camY = camDist * Math.cos(camPhi);
             const camZ = camDist * Math.sin(camPhi) * Math.sin(camTheta);
             this.camera.position.lerp(new THREE.Vector3(camX, camY, camZ), Math.min(ease, 1));
-            this.camera.lookAt(this.controls.target);
             this.controls.update();
             if (t < duration) {
                 requestAnimationFrame(animate);
             } else {
-                this.controls.target.copy(target);
-                this.camera.position.set(camX, camY, camZ);
-                this.camera.lookAt(target);
+                // After centering, set controls.target to (0,0,0) but keep current camera position and globe rotation
+                this.controls.target.set(0, 0, 0);
+                // Camera position stays as is
+                // Globe rotation stays as is
                 this.controls.update();
             }
         };
@@ -448,7 +446,7 @@ class Globe {
         }
         equatorPoints.push(equatorPoints[0].clone());
         const equatorGeometry = new THREE.BufferGeometry().setFromPoints(equatorPoints);
-        const equatorMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00 }); // bright green
+        const equatorMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.4 }); // bright green, semi-transparent
         const equatorLine = new THREE.Line(equatorGeometry, equatorMaterial);
         this.globeGroup.add(equatorLine);
 
@@ -465,7 +463,7 @@ class Globe {
         }
         meridianPoints.push(meridianPoints[0].clone());
         const meridianGeometry = new THREE.BufferGeometry().setFromPoints(meridianPoints);
-        const meridianMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 }); // bright red
+        const meridianMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.4 }); // bright red, semi-transparent
         const meridianLine = new THREE.Line(meridianGeometry, meridianMaterial);
         this.globeGroup.add(meridianLine);
 
@@ -481,7 +479,7 @@ class Globe {
         }
         xCirclePoints.push(xCirclePoints[0].clone());
         const xCircleGeometry = new THREE.BufferGeometry().setFromPoints(xCirclePoints);
-        const xCircleMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff }); // bright blue
+        const xCircleMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff, transparent: true, opacity: 0.4 }); // bright blue, semi-transparent
         const xCircleLine = new THREE.Line(xCircleGeometry, xCircleMaterial);
         this.globeGroup.add(xCircleLine);
     }
