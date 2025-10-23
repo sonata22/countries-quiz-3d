@@ -1,12 +1,5 @@
 # 🌍 3D Countries Quiz (IN PROGRESS)
 
-- [ ] 360° panorama viewer effect
-- [ ] Up/Down controls
-- [ ] Zoom in/out controls
-- [ ] Hiding quiz interface (+ spinning mode)
-- [ ] Panning/rotating
-- [ ] Hints (per letter)?
-
 <!-- An interactive 3D geography quiz application that challenges users to identify countries on a rotating Earth globe with satellite imagery.
 
 ## Features
