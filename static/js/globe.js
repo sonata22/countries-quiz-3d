@@ -351,7 +351,7 @@ class Globe {
         this.controls.target.set(0, 0, 0);
         this.controls.minDistance = 0.1;
         this.controls.maxDistance = 5;
-        this.scene.background = new THREE.Color(0x000011);
+    this.scene.background = new THREE.Color(0x100c08); // smoky black
         // Add black sphere at center
         const sphereGeometry = new THREE.SphereGeometry(1, 64, 64);
         const sphereMaterial = new THREE.MeshBasicMaterial({ 
