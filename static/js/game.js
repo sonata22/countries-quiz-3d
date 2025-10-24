@@ -225,7 +225,7 @@ class Game {
 
     highlightCountry(currentCountry) {
     let name = currentCountry && (currentCountry.name || currentCountry.NAME || currentCountry.Admin || currentCountry.ADMIN || currentCountry.country || currentCountry.Country);
-    console.log('highlightCountry called with:', currentCountry, name ? `(full name: ${name})` : '');
+    console.log('highlightCountry called with:', currentCountry, name);
     if (currentCountry && window.geojson) {
         if (!name) {
             console.error('currentCountry.name is missing!', currentCountry);
