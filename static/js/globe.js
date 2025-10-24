@@ -1,138 +1,71 @@
-const COUNTRY_FILL_COLOR = 0x222222;
 // Minimal Globe rendering with Three.js
+const COUNTRY_FILL_COLOR = 0x222222;
 class Globe {
+    // Best-practice: robust, hole-free 3D country fill
     fillCountryArea(name, geojson, color = COUNTRY_FILL_COLOR) {
-        // Create filledGroup if not present
+        // Remove previous fill overlays for this country
         if (!this.filledGroup) {
             this.filledGroup = new THREE.Group();
             this.globeGroup.add(this.filledGroup);
         }
-        // Remove previous meshes for this country name
-        const toRemove = [];
-        this.filledGroup.children.forEach(mesh => {
-            if (mesh.userData && mesh.userData.name === name) {
-                toRemove.push(mesh);
-            }
-        });
-        toRemove.forEach(mesh => this.filledGroup.remove(mesh));
-
-        // List of ISO codes for countries with area < 70 km²
-        const smallCountryCodes = [
-            'VA', // Vatican City
-            'MC', // Monaco
-            'NR', // Nauru
-            'TV', // Tuvalu
-            'SM', // San Marino
-            'LI', // Liechtenstein
-            'KN', // Saint Kitts and Nevis
-            'MH', // Marshall Islands
-            'MV', // Maldives
-            'MT', // Malta
-            'GD', // Grenada
-            'VC', // Saint Vincent and the Grenadines
-            'BB', // Barbados
-            'AG', // Antigua and Barbuda
-            'SC'  // Seychelles
-        ];
+        if (!this._countryOverlayMeshes) this._countryOverlayMeshes = {};
+        if (this._countryOverlayMeshes[name]) {
+            this.filledGroup.remove(this._countryOverlayMeshes[name]);
+            this._countryOverlayMeshes[name].material.dispose();
+            this._countryOverlayMeshes[name].geometry.dispose();
+        }
+        // Find the feature
         geojson.features.forEach(feature => {
             let countryName = feature.properties.name || feature.properties['NAME'];
-            if (countryName === name) {
-                let polygons = [];
-                if (feature.geometry.type === 'Polygon') {
-                    polygons = [feature.geometry.coordinates];
-                } else if (feature.geometry.type === 'MultiPolygon') {
-                    polygons = feature.geometry.coordinates;
-                }
-                polygons.forEach(polygon => {
-                    // Each polygon may have holes (first ring is outer, rest are holes)
-                    // Project lat/lon to 3D, then to 2D for triangulation, then back to 3D
-                    // We'll use a simple equirectangular projection for triangulation
-                    const rings2D = polygon.map(ring => ring.map(([lng, lat]) => new THREE.Vector2(lng, lat)));
-                    if (!rings2D[0] || rings2D[0].length < 3) return;
-                    // Show radiating dot for all small countries
-                    if (smallCountryCodes.includes(name)) {
-                        const minLng = Math.min(...rings2D[0].map(pt => pt.x));
-                        const maxLng = Math.max(...rings2D[0].map(pt => pt.x));
-                        const minLat = Math.min(...rings2D[0].map(pt => pt.y));
-                        const maxLat = Math.max(...rings2D[0].map(pt => pt.y));
-                        const lng = (minLng + maxLng) / 2;
-                        const lat = (minLat + maxLat) / 2;
-                        const latRad = lat * Math.PI / 180;
-                        const lngRad = -lng * Math.PI / 180;
-                        const radius = 1.012;
-                        const x = Math.cos(latRad) * Math.cos(lngRad) * radius;
-                        const y = Math.sin(latRad) * radius;
-                        const z = Math.cos(latRad) * Math.sin(lngRad) * radius;
-                        // Red core (smaller)
-                        const markerGeometry = new THREE.SphereGeometry(0.004, 16, 16);
-                        const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xff2222 });
-                        const marker = new THREE.Mesh(markerGeometry, markerMaterial);
-                        marker.position.set(x, y, z);
-                        marker.userData.name = name;
-                        this.filledGroup.add(marker);
-                        // Radiating glow using a sprite (smaller)
-                        const canvas = document.createElement('canvas');
-                        canvas.width = 64;
-                        canvas.height = 64;
-                        const ctx = canvas.getContext('2d');
-                        const gradient = ctx.createRadialGradient(32, 32, 4, 32, 32, 24);
-                        gradient.addColorStop(0, 'rgba(255,32,32,0.7)');
-                        gradient.addColorStop(0.5, 'rgba(255,32,32,0.2)');
-                        gradient.addColorStop(1, 'rgba(255,32,32,0)');
-                        ctx.fillStyle = gradient;
-                        ctx.beginPath();
-                        ctx.arc(32, 32, 32, 0, 2 * Math.PI);
-                        ctx.fill();
-                        const texture = new THREE.CanvasTexture(canvas);
-                        const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
-                        const sprite = new THREE.Sprite(spriteMaterial);
-                        sprite.position.set(x, y, z);
-                        sprite.scale.set(0.03, 0.03, 1);
-                        this.filledGroup.add(sprite);
-                        // Animate pulsing
-                        let pulseUp = true;
-                        let scale = 0.03;
-                        const animatePulse = () => {
-                            if (!sprite.parent) return; // Stop if removed
-                            if (pulseUp) {
-                                scale += 0.0007;
-                                if (scale > 0.045) pulseUp = false;
-                            } else {
-                                scale -= 0.0007;
-                                if (scale < 0.025) pulseUp = true;
-                            }
-                            sprite.scale.set(scale, scale, 1);
-                            requestAnimationFrame(animatePulse);
-                        };
-                        animatePulse();
-                        return;
-                    }
-                    const shape = new THREE.Shape(rings2D[0]);
-                    for (let i = 1; i < rings2D.length; i++) {
-                        shape.holes.push(new THREE.Path(rings2D[i]));
-                    }
-                    const geometry2D = new THREE.ShapeGeometry(shape, 12);
-                    // Project 2D geometry vertices back to sphere
-                    const position = geometry2D.getAttribute('position');
-                    for (let i = 0; i < position.count; i++) {
-                        const lng = position.getX(i);
-                        const lat = position.getY(i);
-                        const latRad = lat * Math.PI / 180;
-                        const lngRad = -lng * Math.PI / 180;
-                        const radius = 1.008;
-                        const x = Math.cos(latRad) * Math.cos(lngRad) * radius;
-                        const y = Math.sin(latRad) * radius;
-                        const z = Math.cos(latRad) * Math.sin(lngRad) * radius;
-                        position.setXYZ(i, x, y, z);
-                    }
-                    const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, side: THREE.DoubleSide });
-                    const mesh = new THREE.Mesh(geometry2D, material);
-                    mesh.userData.name = name;
-                    this.filledGroup.add(mesh);
-                });
+            if (countryName !== name) return;
+            let polygons = [];
+            if (feature.geometry.type === 'Polygon') {
+                polygons = [feature.geometry.coordinates];
+            } else if (feature.geometry.type === 'MultiPolygon') {
+                polygons = feature.geometry.coordinates;
             }
+            // Rasterize to canvas
+            const canvasSize = 1024;
+            const canvas = document.createElement('canvas');
+            canvas.width = canvasSize;
+            canvas.height = canvasSize;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvasSize, canvasSize);
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            polygons.forEach(polygon => {
+                polygon.forEach((ring, i) => {
+                    ring.forEach(([lng, lat], j) => {
+                        // Equirectangular projection
+                        const x = ((lng + 180) / 360) * canvasSize;
+                        const y = ((90 - lat) / 180) * canvasSize;
+                        if (j === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    });
+                    ctx.closePath();
+                });
+            });
+            ctx.fill();
+            // Create texture
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+            // Create overlay sphere mesh
+            const overlayGeometry = new THREE.SphereGeometry(1.011, 64, 64);
+            const overlayMaterial = new THREE.MeshBasicMaterial({
+                map: texture,
+                transparent: true,
+                opacity: 0.9,
+                color: color,
+                alphaTest: 0.01
+            });
+            const overlayMesh = new THREE.Mesh(overlayGeometry, overlayMaterial);
+            overlayMesh.userData.name = name;
+            this.filledGroup.add(overlayMesh);
+            this._countryOverlayMeshes[name] = overlayMesh;
         });
     }
+// Minimal Globe rendering with Three.js
+// (COUNTRY_FILL_COLOR and class Globe are already defined above)
     fillCountry(name, geojson, color = COUNTRY_FILL_COLOR) {
         geojson.features.forEach(feature => {
             const countryName = feature.properties.name || feature.properties['NAME'];

@@ -167,7 +167,10 @@ class Game {
             // Fill the guessed country area with green
             if (this.currentCountry && window.geojson) {
                 let name = this.currentCountry.name || this.currentCountry.NAME;
-                globe.fillCountryArea(name, window.geojson, 0x222222);
+                if (name) {
+                    // Use the default COUNTRY_FILL_COLOR from globe.js
+                    globe.fillCountryArea(name, window.geojson);
+                }
             }
         } else {
             this.showFeedback(`❌ Incorrect. The correct answer was: ${data.correct_answer}`, 'error');
