@@ -165,7 +165,7 @@ class Globe {
     enableAutoRotate() {
         // Placeholder for compatibility with game.js
     }
-    drawCountryBorders(feature, color = 0xcccccc) {
+    drawCountryBorders(feature, color = 0xFDFFF5) {
         const coords = feature.geometry.type === 'Polygon'
             ? feature.geometry.coordinates
             : feature.geometry.coordinates.flat();
@@ -243,11 +243,7 @@ class Globe {
     drawBorders(geojson) {
         this.borderGroup.clear();
         geojson.features.forEach(feature => {
-            let countryId = feature.properties.name || feature.properties['ISO3166-1-Alpha-2'];
-            if (countryId === '-99') {
-                countryId = feature.properties.name || feature.properties['NAME'];
-            }
-            this.drawCountryBorders(feature, 0xcccccc);
+            this.drawCountryBorders(feature, 0xFDFFF5);
         });
     }
 
@@ -258,7 +254,7 @@ class Globe {
             if (line.material.color.getHex() === 0xff0033) {
                 toRemove.push(line);
             } else {
-                line.material.color.set(0xcccccc);
+                line.material.color.set(0xFDFFF5);
             }
         });
         toRemove.forEach(line => this.borderGroup.remove(line));

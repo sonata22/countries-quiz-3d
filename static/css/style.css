@@ -74,7 +74,7 @@ body {
 #start-screen p {
     font-size: 1.1rem;
     margin-bottom: 2rem;
-    color: #cccccc;
+    color: #FDFFF5;
     line-height: 1.6;
 }
 
@@ -197,7 +197,7 @@ body {
 
 #instructions p {
     font-size: 0.9rem;
-    color: #cccccc;
+    color: #FDFFF5;
     margin-bottom: 0.5rem;
 }
 
@@ -229,7 +229,7 @@ body {
 
 .result-item .label {
     font-size: 1.1rem;
-    color: #cccccc;
+    color: #FDFFF5;
 }
 
 .result-item span:last-child {
@@ -265,7 +265,7 @@ body {
 
 #loading p {
     font-size: 1.2rem;
-    color: #cccccc;
+    color: #FDFFF5;
 }
 
 /* Animations */
