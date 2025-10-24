@@ -109,7 +109,7 @@ The application features:
 Edit the `load_countries()` function in `app.py` to add more countries with their coordinates:
 
 ```python
-{'name': 'Country Name', 'code': 'CC', 'lat': latitude, 'lng': longitude}
+{'name': 'Country Name', 'name': 'CC', 'lat': latitude, 'lng': longitude}
 ```
 
 ### Styling

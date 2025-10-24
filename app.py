@@ -3,7 +3,6 @@ import os
 
 app = Flask(__name__)
 
-# ...existing code...
 
 @app.route('/static/data/world-countries.geojson')
 def get_world_countries_geojson():

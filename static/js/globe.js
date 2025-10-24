@@ -139,7 +139,7 @@ class Globe {
                     const rings2D = polygon.map(ring => ring.map(([lng, lat]) => new THREE.Vector2(lng, lat)));
                     if (!rings2D[0] || rings2D[0].length < 3) return;
                     // Show radiating dot for all small countries
-                    if (smallCountryCodes.includes(code)) {
+                    if (smallCountryCodes.includes(name)) {
                         const minLng = Math.min(...rings2D[0].map(pt => pt.x));
                         const maxLng = Math.max(...rings2D[0].map(pt => pt.x));
                         const minLat = Math.min(...rings2D[0].map(pt => pt.y));
@@ -377,7 +377,7 @@ class Globe {
     drawBorders(geojson) {
         this.borderGroup.clear();
         geojson.features.forEach(feature => {
-            let countryId = feature.properties.code || feature.properties['ISO3166-1-Alpha-2'];
+            let countryId = feature.properties.name || feature.properties['ISO3166-1-Alpha-2'];
             if (countryId === '-99') {
                 countryId = feature.properties.name || feature.properties['NAME'];
             }
@@ -476,7 +476,7 @@ class Globe {
         animate();
     }
 
-    fillCountry(code, geojson, color = 0x90ff90) {
+    fillCountry(name, geojson, color = 0x90ff90) {
         // Remove previous fill lines for this country (green)
         const toRemove = [];
         this.borderGroup.children.forEach(line => {
@@ -486,11 +486,11 @@ class Globe {
         });
         toRemove.forEach(line => this.borderGroup.remove(line));
         geojson.features.forEach(feature => {
-            let countryId = feature.properties.code || feature.properties['ISO3166-1-Alpha-2'];
+            let countryId = feature.properties.name || feature.properties['ISO3166-1-Alpha-2'];
             if (countryId === '-99') {
                 countryId = feature.properties.name || feature.properties['NAME'];
             }
-            if (countryId === code) {
+            if (countryId === name) {
                 const coords = feature.geometry.type === 'Polygon'
                     ? feature.geometry.coordinates
                     : feature.geometry.coordinates.flat();
@@ -581,6 +581,6 @@ fetch('/static/data/world-countries.geojson')
   .then(data => {
     globe.drawBorders(data);
     window.geojson = data;
-    // To highlight a country, call globe.highlightCountry(code, window.geojson);
+    // To highlight a country, call globe.highlightCountry(name, window.geojson);
   });
 
