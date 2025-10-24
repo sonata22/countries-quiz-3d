@@ -112,13 +112,20 @@ def submit_answer():
     global game_state
     
     data = request.json
+    import unicodedata
+    def normalize_ascii(s):
+        # Remove accents/diacritics and convert to closest ASCII
+        return ''.join(c for c in unicodedata.normalize('NFKD', s) if ord(c) < 128).lower()
+
     user_answer = data.get('answer', '').strip().lower()
-    
+    user_answer_ascii = normalize_ascii(user_answer)
+
     if not game_state['current_country']:
         return jsonify({'error': 'No active game'})
-    
+
     correct_answer = game_state['current_country']['name'].lower()
-    is_correct = user_answer == correct_answer
+    correct_answer_ascii = normalize_ascii(correct_answer)
+    is_correct = (user_answer == correct_answer) or (user_answer_ascii == correct_answer_ascii)
     
     # Add current country to answered list
     game_state['answered_countries'].append(game_state['current_country'])
