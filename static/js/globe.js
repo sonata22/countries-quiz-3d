@@ -528,7 +528,7 @@ class Globe {
         }
         equatorPoints.push(equatorPoints[0].clone());
         const equatorGeometry = new THREE.BufferGeometry().setFromPoints(equatorPoints);
-        const equatorMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.4 }); // bright green, semi-transparent
+    const equatorMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00 }); // green
         const equatorLine = new THREE.Line(equatorGeometry, equatorMaterial);
         this.globeGroup.add(equatorLine);
 
@@ -545,7 +545,7 @@ class Globe {
         }
         meridianPoints.push(meridianPoints[0].clone());
         const meridianGeometry = new THREE.BufferGeometry().setFromPoints(meridianPoints);
-        const meridianMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.4 }); // bright red, semi-transparent
+    const meridianMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 }); // red
         const meridianLine = new THREE.Line(meridianGeometry, meridianMaterial);
         this.globeGroup.add(meridianLine);
 
@@ -561,7 +561,7 @@ class Globe {
         }
         xCirclePoints.push(xCirclePoints[0].clone());
         const xCircleGeometry = new THREE.BufferGeometry().setFromPoints(xCirclePoints);
-        const xCircleMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff, transparent: true, opacity: 0.4 }); // bright blue, semi-transparent
+    const xCircleMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff }); // blue
         const xCircleLine = new THREE.Line(xCircleGeometry, xCircleMaterial);
         this.globeGroup.add(xCircleLine);
     }
