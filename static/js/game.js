@@ -166,11 +166,8 @@ class Game {
             this.showFeedback(`✅ Correct! Well done!`, 'success');
             // Fill the guessed country area with green
             if (this.currentCountry && window.geojson) {
-                let code = this.currentCountry.code;
-                if (code === '-99') {
-                    code = this.currentCountry.name || this.currentCountry.NAME;
-                }
-                globe.fillCountryArea(code, window.geojson, 0x222222);
+                let name = this.currentCountry.name || this.currentCountry.NAME;
+                globe.fillCountryArea(name, window.geojson, 0x222222);
             }
         } else {
             this.showFeedback(`❌ Incorrect. The correct answer was: ${data.correct_answer}`, 'error');
@@ -229,16 +226,16 @@ class Game {
     highlightCountry(currentCountry) {
     let name = currentCountry && (currentCountry.name || currentCountry.NAME || currentCountry.Admin || currentCountry.ADMIN || currentCountry.country || currentCountry.Country);
     console.log('highlightCountry called with:', currentCountry, name ? `(full name: ${name})` : '');
-        if (currentCountry && window.geojson) {
-            if (!currentCountry.code) {
-                console.error('currentCountry.code is missing!', currentCountry);
-            }
-            globe.highlightCountry(currentCountry.code, window.geojson);
-        } else {
-            if (!window.geojson) {
-                console.error('window.geojson is not loaded yet!');
-            }
+    if (currentCountry && window.geojson) {
+        if (!name) {
+            console.error('currentCountry.name is missing!', currentCountry);
         }
+        globe.highlightCountry(name, window.geojson);
+    } else {
+        if (!window.geojson) {
+            console.error('window.geojson is not loaded yet!');
+        }
+    }
     }
 
     updateUI() {

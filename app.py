@@ -34,7 +34,6 @@ def load_countries():
     for feature in data['features']:
         props = feature['properties']
         name = props.get('name') or props.get('ADMIN') or props.get('NAME') or props.get('Country') or props.get('country')
-        code = props.get('ISO3166-1-Alpha-2') or props.get('ISO_A2') or props.get('iso_a2') or props.get('ISO2') or props.get('ISO') or props.get('code')
         # Calculate geometric centroid using shapely
         geometry = feature['geometry']
         try:
@@ -63,10 +62,10 @@ def load_countries():
             else:
                 lat = 0
                 lng = 0
-        if name and code:
-            countries.append({'name': name, 'code': code, 'lat': lat, 'lng': lng})
+        if name:
+            countries.append({'name': name, 'lat': lat, 'lng': lng})
         else:
-            print(f"Skipping feature with missing name/code: {props}")
+            print(f"Skipping feature with missing name: {props}")
     if not countries:
         print("No valid countries found in GeoJSON!")
     else:
@@ -100,7 +99,6 @@ def start_game():
         'current_country': {
             'lat': game_state['current_country']['lat'],
             'lng': game_state['current_country']['lng'],
-            'code': game_state['current_country']['code'],
             'name': game_state['current_country']['name']
         },
         'total_countries': game_state['total_countries']
@@ -135,8 +133,8 @@ def submit_answer():
     
     # Get next country
     remaining_countries = [c for c in game_state['countries'] 
-                          if c not in game_state['answered_countries']]
-    
+                          if c['name'] not in [a['name'] for a in game_state['answered_countries']]]
+
     if remaining_countries:
         game_state['current_country'] = remaining_countries[0]
         return jsonify({
@@ -145,7 +143,7 @@ def submit_answer():
             'next_country': {
                 'lat': game_state['current_country']['lat'],
                 'lng': game_state['current_country']['lng'],
-                'code': game_state['current_country']['code']
+                'name': game_state['current_country']['name']
             },
             'score': game_state['score'],
             'answered': len(game_state['answered_countries']),
@@ -175,7 +173,7 @@ def get_game_state():
         'current_country': {
             'lat': game_state['current_country']['lat'],
             'lng': game_state['current_country']['lng'],
-            'code': game_state['current_country']['code']
+            'name': game_state['current_country']['name']
         },
         'score': game_state['score'],
         'answered': len(game_state['answered_countries']),

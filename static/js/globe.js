@@ -90,27 +90,42 @@ document.addEventListener('keyup', function(e) {
 });
 // Minimal Globe rendering with Three.js
 class Globe {
-    fillCountryArea(code, geojson, color = COUNTRY_FILL_COLOR) {
+    fillCountryArea(name, geojson, color = COUNTRY_FILL_COLOR) {
         // Create filledGroup if not present
         if (!this.filledGroup) {
             this.filledGroup = new THREE.Group();
             this.globeGroup.add(this.filledGroup);
         }
-        // Remove previous meshes for this code
+        // Remove previous meshes for this country name
         const toRemove = [];
         this.filledGroup.children.forEach(mesh => {
-            if (mesh.userData && mesh.userData.code === code) {
+            if (mesh.userData && mesh.userData.name === name) {
                 toRemove.push(mesh);
             }
         });
         toRemove.forEach(mesh => this.filledGroup.remove(mesh));
 
+        // List of ISO codes for countries with area < 70 km²
+        const smallCountryCodes = [
+            'VA', // Vatican City
+            'MC', // Monaco
+            'NR', // Nauru
+            'TV', // Tuvalu
+            'SM', // San Marino
+            'LI', // Liechtenstein
+            'KN', // Saint Kitts and Nevis
+            'MH', // Marshall Islands
+            'MV', // Maldives
+            'MT', // Malta
+            'GD', // Grenada
+            'VC', // Saint Vincent and the Grenadines
+            'BB', // Barbados
+            'AG', // Antigua and Barbuda
+            'SC'  // Seychelles
+        ];
         geojson.features.forEach(feature => {
-            let countryId = feature.properties.code || feature.properties['ISO3166-1-Alpha-2'];
-            if (countryId === '-99') {
-                countryId = feature.properties.name || feature.properties['NAME'];
-            }
-            if (countryId === code) {
+            let countryName = feature.properties.name || feature.properties['NAME'];
+            if (countryName === name) {
                 let polygons = [];
                 if (feature.geometry.type === 'Polygon') {
                     polygons = [feature.geometry.coordinates];
@@ -122,6 +137,65 @@ class Globe {
                     // Project lat/lon to 3D, then to 2D for triangulation, then back to 3D
                     // We'll use a simple equirectangular projection for triangulation
                     const rings2D = polygon.map(ring => ring.map(([lng, lat]) => new THREE.Vector2(lng, lat)));
+                    if (!rings2D[0] || rings2D[0].length < 3) return;
+                    // Show radiating dot for all small countries
+                    if (smallCountryCodes.includes(code)) {
+                        const minLng = Math.min(...rings2D[0].map(pt => pt.x));
+                        const maxLng = Math.max(...rings2D[0].map(pt => pt.x));
+                        const minLat = Math.min(...rings2D[0].map(pt => pt.y));
+                        const maxLat = Math.max(...rings2D[0].map(pt => pt.y));
+                        const lng = (minLng + maxLng) / 2;
+                        const lat = (minLat + maxLat) / 2;
+                        const latRad = lat * Math.PI / 180;
+                        const lngRad = -lng * Math.PI / 180;
+                        const radius = 1.012;
+                        const x = Math.cos(latRad) * Math.cos(lngRad) * radius;
+                        const y = Math.sin(latRad) * radius;
+                        const z = Math.cos(latRad) * Math.sin(lngRad) * radius;
+                        // Red core (smaller)
+                        const markerGeometry = new THREE.SphereGeometry(0.004, 16, 16);
+                        const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xff2222 });
+                        const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+                        marker.position.set(x, y, z);
+                        marker.userData.name = name;
+                        this.filledGroup.add(marker);
+                        // Radiating glow using a sprite (smaller)
+                        const canvas = document.createElement('canvas');
+                        canvas.width = 64;
+                        canvas.height = 64;
+                        const ctx = canvas.getContext('2d');
+                        const gradient = ctx.createRadialGradient(32, 32, 4, 32, 32, 24);
+                        gradient.addColorStop(0, 'rgba(255,32,32,0.7)');
+                        gradient.addColorStop(0.5, 'rgba(255,32,32,0.2)');
+                        gradient.addColorStop(1, 'rgba(255,32,32,0)');
+                        ctx.fillStyle = gradient;
+                        ctx.beginPath();
+                        ctx.arc(32, 32, 32, 0, 2 * Math.PI);
+                        ctx.fill();
+                        const texture = new THREE.CanvasTexture(canvas);
+                        const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
+                        const sprite = new THREE.Sprite(spriteMaterial);
+                        sprite.position.set(x, y, z);
+                        sprite.scale.set(0.03, 0.03, 1);
+                        this.filledGroup.add(sprite);
+                        // Animate pulsing
+                        let pulseUp = true;
+                        let scale = 0.03;
+                        const animatePulse = () => {
+                            if (!sprite.parent) return; // Stop if removed
+                            if (pulseUp) {
+                                scale += 0.0007;
+                                if (scale > 0.045) pulseUp = false;
+                            } else {
+                                scale -= 0.0007;
+                                if (scale < 0.025) pulseUp = true;
+                            }
+                            sprite.scale.set(scale, scale, 1);
+                            requestAnimationFrame(animatePulse);
+                        };
+                        animatePulse();
+                        return;
+                    }
                     const shape = new THREE.Shape(rings2D[0]);
                     for (let i = 1; i < rings2D.length; i++) {
                         shape.holes.push(new THREE.Path(rings2D[i]));
@@ -142,16 +216,16 @@ class Globe {
                     }
                     const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, side: THREE.DoubleSide });
                     const mesh = new THREE.Mesh(geometry2D, material);
-                    mesh.userData.code = code;
+                    mesh.userData.name = name;
                     this.filledGroup.add(mesh);
                 });
             }
         });
     }
-    fillCountry(code, geojson, color = COUNTRY_FILL_COLOR) {
+    fillCountry(name, geojson, color = COUNTRY_FILL_COLOR) {
         geojson.features.forEach(feature => {
-            const countryCode = feature.properties.code || feature.properties['ISO3166-1-Alpha-2'];
-            if (countryCode === code) {
+            const countryName = feature.properties.name || feature.properties['NAME'];
+            if (countryName === name) {
                 const coords = feature.geometry.type === 'Polygon'
                     ? feature.geometry.coordinates
                     : feature.geometry.coordinates.flat();
@@ -283,7 +357,7 @@ class Globe {
         const sphereMaterial = new THREE.MeshBasicMaterial({ 
             color: 0x000000, 
             transparent: true, 
-            opacity: 0.80 
+            opacity: 0.90 
         });
         const sphereMesh = new THREE.Mesh(sphereGeometry, sphereMaterial);
         this.globeGroup.add(sphereMesh);
@@ -311,7 +385,7 @@ class Globe {
         });
     }
 
-    highlightCountry(code, geojson) {
+    highlightCountry(name, geojson) {
         // Remove previous highlight lines for this country (red)
         const toRemove = [];
         this.borderGroup.children.forEach(line => {
@@ -323,20 +397,16 @@ class Globe {
         });
         toRemove.forEach(line => this.borderGroup.remove(line));
         geojson.features.forEach(feature => {
-            let countryId = feature.properties.code || feature.properties['ISO3166-1-Alpha-2'];
-            if (countryId === '-99') {
-                countryId = feature.properties.name || feature.properties['NAME'];
-            }
-            if (countryId === code) {
+            let countryName = feature.properties.name || feature.properties['NAME'];
+            if (countryName === name) {
                 this.drawCountryBorders(feature, 0xff0033);
             }
         });
         // --- three-globe inspired centering logic ---
         // Find centroid
         const feature = geojson.features.find(f => {
-            let countryId = f.properties.code || f.properties['ISO3166-1-Alpha-2'];
-            if (countryId === '-99') countryId = f.properties.name || f.properties['NAME'];
-            return countryId === code;
+            let countryName = f.properties.name || f.properties['NAME'];
+            return countryName === name;
         });
         if (!feature) return;
         let points = [];
@@ -346,10 +416,22 @@ class Globe {
             feature.geometry.coordinates.forEach(poly => poly.forEach(ring => points.push(...ring)));
         }
         if (!points.length) return;
+        // Normalize longitudes for antimeridian-crossing countries
+        let lngs = points.map(([lng, _]) => lng);
+        // If the longitude range is > 180, shift all to same side
+        let minLng = Math.min(...lngs);
+        let maxLng = Math.max(...lngs);
+        let shift = 0;
+        if (maxLng - minLng > 180) {
+            // Shift all longitudes: if < 0, add 360
+            points = points.map(([lng, lat]) => [lng < 0 ? lng + 360 : lng, lat]);
+        }
         let sumLat = 0, sumLng = 0;
         points.forEach(([lng, lat]) => { sumLat += lat; sumLng += lng; });
-        const centroidLat = sumLat / points.length;
-        const centroidLng = sumLng / points.length;
+        let centroidLat = sumLat / points.length;
+        let centroidLng = sumLng / points.length;
+        // If we shifted, bring centroidLng back to [-180,180]
+        if (maxLng - minLng > 180 && centroidLng > 180) centroidLng -= 360;
         // Convert to 3D position on sphere
         const latRad = centroidLat * Math.PI / 180;
         const lngRad = -centroidLng * Math.PI / 180;
