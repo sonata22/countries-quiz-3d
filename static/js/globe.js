@@ -283,7 +283,7 @@ class Globe {
         const sphereMaterial = new THREE.MeshBasicMaterial({ 
             color: 0x000000, 
             transparent: true, 
-            opacity: 0.65 
+            opacity: 0.80 
         });
         const sphereMesh = new THREE.Mesh(sphereGeometry, sphereMaterial);
         this.globeGroup.add(sphereMesh);
