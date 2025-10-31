@@ -14,13 +14,8 @@ import time
 
 app = Flask(__name__)
 
-# Global game state
 game_state = {
     'countries': [],
-    'current_country': None,
-    'answered_countries': [],
-    'start_time': None,
-    'score': 0,
     'total_countries': 0
 }
 
@@ -85,20 +80,16 @@ def start_game():
     
     if not countries:
         return jsonify({'success': False, 'error': 'No valid countries found in GeoJSON.'}), 500
-    game_state = {
-        'countries': countries,
-        'current_country': countries[0],
-        'answered_countries': [],
-        'start_time': time.time(),
-        'score': 0,
-        'total_countries': len(countries)
-    }
+    game_state['countries'] = countries
+    game_state['total_countries'] = len(countries)
+    # Pick a random country to start (for UI, but backend is stateless)
+    first_country = countries[0]
     return jsonify({
         'success': True,
         'current_country': {
-            'lat': game_state['current_country']['lat'],
-            'lng': game_state['current_country']['lng'],
-            'name': game_state['current_country']['name']
+            'lat': first_country['lat'],
+            'lng': first_country['lng'],
+            'name': first_country['name']
         },
         'total_countries': game_state['total_countries']
     })
@@ -135,17 +126,16 @@ def submit_answer():
 @app.route('/api/game_state')
 def get_game_state():
     """Get current game state"""
-    if not game_state['current_country']:
+    if not game_state['countries']:
         return jsonify({'error': 'No active game'})
-    
+    # For compatibility, just return the first country and total
+    first_country = game_state['countries'][0]
     return jsonify({
         'current_country': {
-            'lat': game_state['current_country']['lat'],
-            'lng': game_state['current_country']['lng'],
-            'name': game_state['current_country']['name']
+            'lat': first_country['lat'],
+            'lng': first_country['lng'],
+            'name': first_country['name']
         },
-        'score': game_state['score'],
-        'answered': len(game_state['answered_countries']),
         'total': game_state['total_countries']
     })
 
