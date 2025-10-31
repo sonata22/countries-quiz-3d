@@ -94,6 +94,11 @@ class Game {
             // Build the pool of all countries from geojson
             if (window.geojson) {
                 this.remainingCountries = window.geojson.features.map(f => f.properties.name || f.properties['NAME']);
+                // Shuffle the countries queue using Fisher-Yates
+                for (let i = this.remainingCountries.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [this.remainingCountries[i], this.remainingCountries[j]] = [this.remainingCountries[j], this.remainingCountries[i]];
+                }
             } else {
                 alert('GeoJSON not loaded!');
                 return;
