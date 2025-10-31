@@ -9,7 +9,7 @@ class Game {
         this.startTime = null;
         this.timerInterval = null;
         this.isGameActive = false;
-        
+        this.remainingCountries = [];
         this.init();
     }
 
@@ -98,19 +98,22 @@ class Game {
             } else {
                 console.log('current_country:', data.current_country);
             }
-            this.currentCountry = data.current_country;
-            this.totalCountries = data.total_countries;
+            // Build the pool of all countries from geojson
+            if (window.geojson) {
+                this.remainingCountries = window.geojson.features.map(f => f.properties.name || f.properties['NAME']);
+            } else {
+                alert('GeoJSON not loaded!');
+                return;
+            }
+            this.totalCountries = this.remainingCountries.length;
             this.score = 0;
             this.answeredCountries = 0;
             this.startTime = Date.now();
             this.isGameActive = true;
             this.updateUI();
             this.showScreen('game-screen');
-            // Ensure the highlighted country shape is shown and focused
-            setTimeout(() => {
-                this.highlightCountry(this.currentCountry);
-                document.getElementById('country-input').focus();
-            }, 200);
+            // Pick the first country
+            this.nextCountry();
             this.startTimer();
         } catch (error) {
             console.error('Error starting game:', error);
@@ -132,23 +135,19 @@ class Game {
         try {
             this.showLoading(true);
             this.isGameActive = false;
-            
             const response = await fetch('/api/submit_answer', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ answer: answer })
+                body: JSON.stringify({
+                    answer: answer,
+                    country: this.currentCountry // always send the country being guessed
+                })
             });
-            
             const data = await response.json();
-            
-            if (data.game_finished) {
-                this.endGame(data);
-            } else {
-                this.processAnswer(data);
-            }
-            
+            // Ignore backend's game_finished, always use frontend queue
+            this.processAnswer(data);
         } catch (error) {
             console.error('Error submitting answer:', error);
             this.showFeedback('Error submitting answer. Please try again.', 'error');
@@ -162,40 +161,62 @@ class Game {
         const input = document.getElementById('country-input');
         
         if (data.correct) {
-            this.score = data.score;
+            this.score = (this.score || 0) + 1;
             this.showFeedback(`✅ Correct! Well done!`, 'success');
-            // Fill the guessed country area with green
+            // Fill the guessed country area
             if (this.currentCountry && window.geojson) {
-                let name = this.currentCountry.name || this.currentCountry.NAME;
-                if (name) {
-                    // Use the default COUNTRY_FILL_COLOR from globe.js
-                    globe.fillCountryArea(name, window.geojson);
-                }
+                let name = this.currentCountry;
+                globe.fillCountryArea(name, window.geojson);
             }
         } else {
+            // Debug log for mismatch
+            console.warn('Wrong answer:', {
+                highlightedCountry: this.currentCountry,
+                backendCorrectAnswer: data.correct_answer,
+                userAnswer: document.getElementById('country-input').value
+            });
             this.showFeedback(`❌ Incorrect. The correct answer was: ${data.correct_answer}`, 'error');
+            // Re-add the country to the end of the queue
+            if (this.currentCountry) {
+                this.remainingCountries.push(this.currentCountry);
+            }
         }
-        
-        this.answeredCountries = data.answered;
-        this.currentCountry = data.next_country;
+        this.answeredCountries = this.totalCountries - this.remainingCountries.length;
         this.updateUI();
-        
         // Clear input and prepare for next question
         input.value = '';
-        
         // Show continue instruction
         const feedback = document.getElementById('feedback');
         feedback.innerHTML += '<br><em>Press Enter to continue...</em>';
-        
         // Focus back on input for next question
         input.focus();
+        // Move to next country if any left
+        setTimeout(() => this.nextCountry(), 500);
+    }
+
+    nextCountry() {
+        if (this.remainingCountries.length === 0) {
+            this.endGame({
+                correct: true,
+                final_score: this.score,
+                total_countries: this.totalCountries,
+                total_time: (Date.now() - this.startTime) / 1000
+            });
+            return;
+        }
+        // Always pick the first country in the queue
+        this.currentCountry = this.remainingCountries.shift();
+        // Highlight on globe
+        if (window.geojson) {
+            this.highlightCountry({ name: this.currentCountry });
+        }
     }
 
     nextQuestion() {
         if (this.currentCountry) {
             this.isGameActive = true;
             this.hideFeedback();
-            this.highlightCountry(this.currentCountry);
+            this.highlightCountry({ name: this.currentCountry });
             document.getElementById('country-input').focus();
         }
     }

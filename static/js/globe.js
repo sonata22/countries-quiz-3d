@@ -1,6 +1,28 @@
 // Minimal Globe rendering with Three.js
 const COUNTRY_FILL_COLOR = 0x222222;
 class Globe {
+    // Remove all country highlights and overlays
+    removeHighlight() {
+        // Remove all red highlight lines from borderGroup
+        if (this.borderGroup && this.borderGroup.children) {
+            const toRemove = [];
+            this.borderGroup.children.forEach(line => {
+                if (line.material && line.material.color.getHex() === 0xff0033) {
+                    toRemove.push(line);
+                }
+            });
+            toRemove.forEach(line => this.borderGroup.remove(line));
+        }
+        // Optionally clear all filled overlays
+        if (this.filledGroup && this._countryOverlayMeshes) {
+            Object.values(this._countryOverlayMeshes).forEach(mesh => {
+                this.filledGroup.remove(mesh);
+                if (mesh.material) mesh.material.dispose();
+                if (mesh.geometry) mesh.geometry.dispose();
+            });
+            this._countryOverlayMeshes = {};
+        }
+    }
     // Best-practice: robust, hole-free 3D country fill
     fillCountryArea(name, geojson, color = COUNTRY_FILL_COLOR) {
         // Remove previous fill overlays for this country

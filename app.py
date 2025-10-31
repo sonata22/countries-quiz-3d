@@ -116,51 +116,21 @@ def submit_answer():
 
     user_answer = data.get('answer', '').strip().lower()
     user_answer_ascii = normalize_ascii(user_answer)
-
-    if not game_state['current_country']:
-        return jsonify({'error': 'No active game'})
-
-    correct_answer = game_state['current_country']['name'].lower()
+    country = data.get('country')
+    if not country:
+        return jsonify({'error': 'No country provided'})
+    # Find canonical country name from loaded countries
+    canonical_country = next((c for c in game_state['countries'] if c['name'] == country), None)
+    if not canonical_country:
+        return jsonify({'error': 'Country not found'})
+    correct_answer = canonical_country['name']
     correct_answer_ascii = normalize_ascii(correct_answer)
-    is_correct = (user_answer == correct_answer) or (user_answer_ascii == correct_answer_ascii)
-    
-    # Add current country to answered list
-    game_state['answered_countries'].append(game_state['current_country'])
-    
-    if is_correct:
-        game_state['score'] += 1
-    
-    # Get next country
-    remaining_countries = [c for c in game_state['countries'] 
-                          if c['name'] not in [a['name'] for a in game_state['answered_countries']]]
-
-    if remaining_countries:
-        game_state['current_country'] = remaining_countries[0]
-        return jsonify({
-            'correct': is_correct,
-            'correct_answer': game_state['answered_countries'][-1]['name'],
-            'next_country': {
-                'lat': game_state['current_country']['lat'],
-                'lng': game_state['current_country']['lng'],
-                'name': game_state['current_country']['name']
-            },
-            'score': game_state['score'],
-            'answered': len(game_state['answered_countries']),
-            'total': game_state['total_countries']
-        })
-    else:
-        # Game finished
-        end_time = time.time()
-        total_time = end_time - game_state['start_time']
-        
-        return jsonify({
-            'correct': is_correct,
-            'correct_answer': game_state['answered_countries'][-1]['name'],
-            'game_finished': True,
-            'final_score': game_state['score'],
-            'total_countries': game_state['total_countries'],
-            'total_time': round(total_time, 1)
-        })
+    is_correct = (user_answer == correct_answer.lower()) or (user_answer_ascii == correct_answer_ascii)
+    # Stateless: just return result for this country
+    return jsonify({
+        'correct': is_correct,
+        'correct_answer': correct_answer
+    })
 
 @app.route('/api/game_state')
 def get_game_state():
