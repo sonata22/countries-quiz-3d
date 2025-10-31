@@ -31,22 +31,15 @@ class Game {
             this.submitAnswer();
         });
 
-        // Enter key to submit answer
+        // Enter key to submit answer (always submits, even if feedback is showing)
         document.getElementById('country-input').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                if (this.isGameActive) {
-                    const input = document.getElementById('country-input');
-                    if (!input.value.trim()) {
-                        // Skip country if input is empty
-                        this.submitAnswer('');
-                    } else {
-                        this.submitAnswer();
-                    }
+                const input = document.getElementById('country-input');
+                if (!input.value.trim()) {
+                    // Skip country if input is empty
+                    this.submitAnswer('');
                 } else {
-                    // If game is not active but we're showing feedback, continue to next question
-                    if (!document.getElementById('feedback').classList.contains('hidden')) {
-                        this.nextQuestion();
-                    }
+                    this.submitAnswer();
                 }
             }
         });
@@ -151,6 +144,7 @@ class Game {
         } catch (error) {
             console.error('Error submitting answer:', error);
             this.showFeedback('Error submitting answer. Please try again.', 'error');
+            // Only re-enable if error
             this.isGameActive = true;
         } finally {
             this.showLoading(false);
@@ -162,7 +156,7 @@ class Game {
         
         if (data.correct) {
             this.score = (this.score || 0) + 1;
-            this.showFeedback(`✅ Correct! Well done!`, 'success');
+            this.showFeedback(`Correct, it was ${data.correct_answer}`, 'success');
             // Fill the guessed country area
             if (this.currentCountry && window.geojson) {
                 let name = this.currentCountry;
@@ -175,7 +169,7 @@ class Game {
                 backendCorrectAnswer: data.correct_answer,
                 userAnswer: document.getElementById('country-input').value
             });
-            this.showFeedback(`❌ Incorrect. The correct answer was: ${data.correct_answer}`, 'error');
+            this.showFeedback(`Not quite, it was ${data.correct_answer}`, 'error');
             // Re-add the country to the end of the queue
             if (this.currentCountry) {
                 this.remainingCountries.push(this.currentCountry);
@@ -185,9 +179,7 @@ class Game {
         this.updateUI();
         // Clear input and prepare for next question
         input.value = '';
-        // Show continue instruction
-        const feedback = document.getElementById('feedback');
-        feedback.innerHTML += '<br><em>Press Enter to continue...</em>';
+    // ...no continue notification needed...
         // Focus back on input for next question
         input.focus();
         // Move to next country if any left
@@ -210,6 +202,8 @@ class Game {
         if (window.geojson) {
             this.highlightCountry({ name: this.currentCountry });
         }
+        // Allow next answer to be submitted
+        this.isGameActive = true;
     }
 
     nextQuestion() {
@@ -227,8 +221,8 @@ class Game {
         
         // Show final feedback for last answer
         const lastAnswerFeedback = data.correct ? 
-            `✅ Correct! Final answer was right!` : 
-            `❌ Incorrect. The correct answer was: ${data.correct_answer}`;
+            `Correct` : 
+            `It was ${data.correct_answer}`;
         
         this.showFeedback(lastAnswerFeedback, data.correct ? 'success' : 'error');
         
@@ -371,11 +365,3 @@ function fullyInitGame() {
 document.addEventListener('DOMContentLoaded', fullyInitGame);
 
 // Handle Enter key globally for continuing after wrong answers
-document.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && game && !game.isGameActive) {
-        const feedback = document.getElementById('feedback');
-        if (!feedback.classList.contains('hidden') && game.currentCountry) {
-            game.nextQuestion();
-        }
-    }
-});
